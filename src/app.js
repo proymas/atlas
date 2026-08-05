@@ -1,82 +1,90 @@
 import { post } from './api.js';
-import { FALLBACK_QUESTIONS, LOADING_MESSAGES } from './config.js';
+import { FALLBACK_QUESTIONS } from './config.js';
 import { byId, safeText } from './dom.js';
+import { getLocale, initI18n, t } from './i18n.js';
 import { renderReport, revealReport } from './report.js';
 import { resetState, state } from './state.js';
 import { track } from './tracking.js';
-import { renderList, setProgress, showView } from './ui.js';
+import { setProgress, showView } from './ui.js';
 
 let loadingTimer;
 
 function startLoading() {
   let index = 0;
-  byId('loading-copy').textContent = LOADING_MESSAGES[index];
+  const update = () => {
+    const messages = t('runtime.loading');
+    byId('loading-copy').textContent = messages[index % messages.length];
+  };
+  update();
   clearInterval(loadingTimer);
-  loadingTimer = setInterval(() => {
-    index = (index + 1) % LOADING_MESSAGES.length;
-    byId('loading-copy').textContent = LOADING_MESSAGES[index];
-  }, 900);
+  loadingTimer = setInterval(() => { index += 1; update(); }, 900);
 }
 
-function stopLoading() {
-  clearInterval(loadingTimer);
+function stopLoading() { clearInterval(loadingTimer); }
+
+function translatedFallbackQuestions() {
+  if (getLocale() === 'en') {
+    return [
+      { question: 'Who is the first specific customer for this idea?', reason: 'Target customer' },
+      { question: 'What urgent problem are they solving today and with which alternative?', reason: 'Problem evidence' },
+      { question: 'What real evidence suggests they would pay?', reason: 'Willingness to pay' },
+      { question: 'How would you reach the first ten customers?', reason: 'Distribution' },
+      { question: 'What is the smallest test you can run in seven days?', reason: 'Validation' },
+    ];
+  }
+  return FALLBACK_QUESTIONS;
 }
 
 function renderQuestion() {
   showView('question-view');
   const total = state.questions.length;
   const question = state.questions[state.index] || {};
-  byId('question-title').textContent = question.question || question.text || 'Cuéntanos un poco más';
-  byId('question-reason').textContent = question.reason || question.dimension || 'Pregunta adaptada';
+  byId('question-title').textContent = question.question || question.text || t('runtime.fallbackQuestion');
+  byId('question-reason').textContent = question.reason || question.dimension || t('runtime.adapted');
   byId('answer').value = '';
-  setProgress(15 + (state.index / Math.max(1, total)) * 55, `Pregunta ${state.index + 1} de ${total}`);
+  setProgress(15 + (state.index / Math.max(1, total)) * 55, t('runtime.question', { current: state.index + 1, total }));
   byId('answer').focus();
 }
 
 function renderBlocked(result) {
   showView('report-view');
-  setProgress(100, 'Análisis detenido');
+  setProgress(100, t('runtime.stopped'));
   renderReport({
     score: 0,
-    verdict: 'IDEA NO EVALUABLE',
-    summary: safeText(result.reason) || 'Atlas no analiza ni proporciona planes para actividades ilegales o dañinas.',
+    verdict: t('runtime.blockedVerdict'),
+    summary: safeText(result.reason) || t('runtime.blockedSummary'),
     strengths: [],
-    risks: ['La actividad descrita no puede recibir asistencia comercial.'],
+    risks: [t('runtime.blockedRisk')],
     assumptions: [],
-    doNotBuildYet: ['No continúes con esta idea. Reformúlala hacia una actividad legal y segura.'],
-    experiment: {
-      name: 'Siguiente paso seguro',
-      steps: ['Describe una alternativa legal que resuelva un problema real sin causar daño.'],
-    },
+    doNotBuildYet: [t('runtime.blockedDont')],
+    experiment: { name: t('runtime.safeStep'), steps: [t('runtime.safeAction')] },
   });
-  track('screening_blocked');
+  track('screening_blocked', { locale: getLocale() });
 }
 
 async function startAnalysis() {
   const idea = safeText(byId('idea').value);
   byId('start-error').textContent = '';
   if (idea.length < 12) {
-    byId('start-error').textContent = 'Describe la idea con un poco más de detalle.';
+    byId('start-error').textContent = t('runtime.detailError');
     return;
   }
 
   state.idea = idea;
   byId('start-button').disabled = true;
   showView('loading-view');
-  setProgress(12, 'Analizando idea');
+  setProgress(12, t('runtime.analyzing'));
   startLoading();
-  track('validator_started');
+  track('validator_started', { locale: getLocale() });
 
   try {
-    const result = await post('/api/analyze', { stage: 'screen', idea, language: 'es' });
+    const result = await post('/api/analyze', { stage: 'screen', idea, language: getLocale(), locale: getLocale() });
     if (result.status === 'blocked' || result.classification === 'prohibited') {
       stopLoading();
       renderBlocked(result);
       return;
     }
-    state.questions = Array.isArray(result.questions) && result.questions.length
-      ? result.questions
-      : FALLBACK_QUESTIONS;
+    state.questions = Array.isArray(result.questions) && result.questions.length ? result.questions : translatedFallbackQuestions();
     state.answers = [];
     state.index = 0;
     stopLoading();
@@ -84,7 +92,7 @@ async function startAnalysis() {
   } catch (error) {
     stopLoading();
     showView('start-view');
-    setProgress(0, 'Paso 1 de 1');
+    setProgress(0, t('runtime.stepOne'));
     byId('start-error').textContent = error.message;
   } finally {
     byId('start-button').disabled = false;
@@ -93,42 +101,31 @@ async function startAnalysis() {
 
 async function submitAnswer() {
   const value = safeText(byId('answer').value);
-  if (value.length < 3) {
-    byId('answer').focus();
-    return;
-  }
+  if (value.length < 3) { byId('answer').focus(); return; }
 
   state.answers.push({ question: byId('question-title').textContent, answer: value });
   state.index += 1;
-  if (state.index < state.questions.length) {
-    renderQuestion();
-    return;
-  }
+  if (state.index < state.questions.length) { renderQuestion(); return; }
 
   showView('loading-view');
-  setProgress(78, 'Preparando informe');
+  setProgress(78, t('runtime.preparing'));
   startLoading();
-  track('questionnaire_completed', { questions: state.questions.length });
+  track('questionnaire_completed', { questions: state.questions.length, locale: getLocale() });
 
   try {
-    const report = await post('/api/analyze', {
-      stage: 'report',
-      idea: state.idea,
-      answers: state.answers,
-      language: 'es',
-    });
+    const report = await post('/api/analyze', { stage: 'report', idea: state.idea, answers: state.answers, language: getLocale(), locale: getLocale() });
     state.report = report;
     stopLoading();
     await revealReport(report);
-    track('report_generated', { score: report.score, verdict: report.verdict });
+    track('report_generated', { score: report.score, verdict: report.verdict, locale: getLocale() });
   } catch (error) {
     stopLoading();
     showView('question-view');
     state.index = Math.max(0, state.questions.length - 1);
-    byId('question-title').textContent = 'No se pudo generar el informe';
+    byId('question-title').textContent = t('runtime.reportError');
     byId('question-reason').textContent = error.message;
     byId('answer').classList.add('hidden');
-    byId('answer-button').textContent = 'Reintentar';
+    byId('answer-button').textContent = t('runtime.retry');
   }
 }
 
@@ -136,33 +133,34 @@ function resetAnalysis() {
   resetState();
   byId('idea').value = '';
   byId('answer').classList.remove('hidden');
-  byId('answer-button').textContent = 'Continuar';
+  byId('answer-button').textContent = t('validator.continue');
   showView('start-view');
-  setProgress(0, 'Paso 1 de 1');
+  setProgress(0, t('runtime.stepOne'));
   byId('idea').focus();
-  track('restart_clicked');
+  track('restart_clicked', { locale: getLocale() });
 }
 
 async function shareReport() {
   const report = state.report || {};
-  const text = `Atlas — ${report.verdict || 'Informe de validación'}\nPuntuación: ${report.score ?? '—'}/100\n${report.executiveSummary || report.summary || ''}`;
+  const text = `Atlas — ${report.verdict || t('runtime.validationReport')}\n${t('runtime.score')}: ${report.score ?? '—'}/100\n${report.executiveSummary || report.summary || ''}`;
   try {
     if (navigator.share) {
-      await navigator.share({ title: 'Atlas Validation Report', text, url: location.href });
+      await navigator.share({ title: `Atlas — ${t('runtime.validationReport')}`, text, url: location.href });
     } else {
       await navigator.clipboard.writeText(`${text}\n${location.href}`);
-      byId('share-button').textContent = 'Copiado';
-      setTimeout(() => { byId('share-button').textContent = 'Compartir'; }, 1500);
+      byId('share-button').textContent = t('runtime.copied');
+      setTimeout(() => { byId('share-button').textContent = t('validator.share'); }, 1500);
     }
-    track('report_shared');
-  } catch {
-    // Sharing can be cancelled by the user.
-  }
+    track('report_shared', { locale: getLocale() });
+  } catch { /* User cancelled sharing. */ }
 }
 
 function printReport() {
-  track('pdf_downloaded');
+  const oldTitle = document.title;
+  document.title = getLocale() === 'en' ? 'atlas-report' : 'atlas-informe';
+  track('pdf_downloaded', { locale: getLocale() });
   window.print();
+  setTimeout(() => { document.title = oldTitle; }, 500);
 }
 
 function bindEvents() {
@@ -172,13 +170,15 @@ function bindEvents() {
   byId('new-analysis-button').addEventListener('click', resetAnalysis);
   byId('share-button').addEventListener('click', shareReport);
   byId('pdf-button').addEventListener('click', printReport);
-  byId('idea').addEventListener('keydown', (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') startAnalysis();
-  });
-  byId('answer').addEventListener('keydown', (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') submitAnswer();
+  byId('idea').addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') startAnalysis(); });
+  byId('answer').addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') submitAnswer(); });
+  window.addEventListener('atlas:locale', () => {
+    if (!state.idea) setProgress(0, t('runtime.stepOne'));
+    if (state.report) renderReport(state.report);
   });
 }
 
+initI18n();
 bindEvents();
-track('landing_view');
+setProgress(0, t('runtime.stepOne'));
+track('landing_view', { locale: getLocale() });
