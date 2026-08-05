@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#050a14" />
+  <title>Atlas — Piensa antes de construir</title>
+  <meta name="description" content="Valida tu idea de negocio antes de invertir meses construyéndola." />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="#top" aria-label="Atlas">ATLAS <span>BETA 3.0</span></a>
+      <nav aria-label="Principal">
+        <a href="#principios">Principios</a>
+        <a href="#validator">Validator</a>
+      </nav>
+      <a class="button button-small" href="#validator">Validar mi idea</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero container">
+      <p class="eyebrow">Atlas Validator · Beta pública</p>
+      <h1>Piensa antes de <span>construir.</span></h1>
+      <p class="hero-copy">Atlas transforma una idea de negocio en supuestos, riesgos y un experimento de siete días antes de que inviertas más tiempo o dinero.</p>
+      <div class="hero-actions">
+        <a class="button" href="#validator">Validar mi idea gratis</a>
+        <span>3 minutos · Sin registro · Informe accionable</span>
+      </div>
+      <div class="signal-grid" aria-label="Beneficios principales">
+        <article><strong>01</strong><h2>Preguntas adaptadas</h2><p>No rellenas un formulario genérico: Atlas pregunta según tu idea.</p></article>
+        <article><strong>02</strong><h2>Veredicto razonado</h2><p>Separa hechos, supuestos y evidencia que todavía falta.</p></article>
+        <article><strong>03</strong><h2>Prueba de 7 días</h2><p>Termina con una acción barata, concreta y medible.</p></article>
+      </div>
+    </section>
+
+    <section id="principios" class="section container">
+      <div class="section-heading">
+        <p class="eyebrow">Principios de Atlas</p>
+        <h2>Menos humo. Más evidencia.</h2>
+      </div>
+      <div class="principles">
+        <article><h3>No promete éxito</h3><p>Atlas no puede saber si un negocio funcionará. Sí puede revelar qué falta demostrar.</p></article>
+        <article><h3>No inventa mercado</h3><p>No presenta como hecho aquello que el usuario no ha demostrado.</p></article>
+        <article><h3>No termina en teoría</h3><p>Cada informe propone una prueba con criterios para continuar, reformular o parar.</p></article>
+      </div>
+    </section>
+
+    <section id="validator" class="section validator-section">
+      <div class="container validator-layout">
+        <aside class="validator-intro">
+          <p class="eyebrow">Atlas Validator</p>
+          <h2>Convierte tu idea en una decisión.</h2>
+          <p>Describe qué quieres construir, para quién y cómo ganarías dinero. Atlas hará el resto paso a paso.</p>
+          <ul>
+            <li>Filtro de seguridad previo</li>
+            <li>Cuestionario dinámico</li>
+            <li>Informe y plan de validación</li>
+          </ul>
+        </aside>
+
+        <section class="app-card" aria-live="polite">
+          <div class="progress-row">
+            <span id="step-label">Paso 1 de 1</span>
+            <span id="progress-label">0 %</span>
+          </div>
+          <div class="progress"><span id="progress-bar"></span></div>
+
+          <div id="start-view">
+            <label for="idea">¿Qué negocio quieres construir?</label>
+            <p class="helper">Explica qué haces, para quién y cómo ganarías dinero.</p>
+            <textarea id="idea" placeholder="Ejemplo: una newsletter premium para jóvenes emprendedores"></textarea>
+            <button id="start-button" class="button button-full">Analizar idea</button>
+            <p id="start-error" class="error" role="alert"></p>
+          </div>
+
+          <div id="question-view" class="hidden">
+            <p id="question-reason" class="eyebrow"></p>
+            <h3 id="question-title"></h3>
+            <textarea id="answer" placeholder="Responde con el mayor detalle que puedas"></textarea>
+            <button id="answer-button" class="button button-full">Continuar</button>
+            <button id="restart-button" class="text-button">Reiniciar análisis</button>
+          </div>
+
+          <div id="loading-view" class="hidden loading-view">
+            <div class="spinner" aria-hidden="true"></div>
+            <h3>Atlas está analizando tu idea</h3>
+            <p id="loading-copy">Interpretando la información aportada…</p>
+          </div>
+
+          <div id="report-view" class="hidden report-view">
+            <p class="eyebrow">Veredicto</p>
+            <div class="report-header">
+              <div><span id="score">—</span><small>/100</small></div>
+              <div><h3 id="verdict">—</h3><p id="summary"></p></div>
+            </div>
+            <div class="report-grid">
+              <article><h4>Fortalezas</h4><ul id="strengths"></ul></article>
+              <article><h4>Riesgos</h4><ul id="risks"></ul></article>
+              <article><h4>Supuestos críticos</h4><ul id="assumptions"></ul></article>
+              <article><h4>No construyas todavía</h4><ul id="do-not-build"></ul></article>
+              <article class="experiment"><h4 id="experiment-name">Experimento de 7 días</h4><ol id="experiment-steps"></ol></article>
+            </div>
+            <div class="report-actions">
+              <button id="share-button" class="secondary-button">Compartir</button>
+              <button id="pdf-button" class="button">Descargar PDF</button>
+              <button id="new-analysis-button" class="text-button">Analizar otra idea</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container footer">
+    <span>Atlas Beta 3.0</span>
+    <span>El análisis es orientativo y no sustituye investigación de mercado.</span>
+  </footer>
+
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>
