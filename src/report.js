@@ -1,110 +1,18 @@
-import { byId, safeText } from './dom.js';
+import { byId, escapeHtml, safeText } from './dom.js';
 import { getLocale, t } from './i18n.js';
+import { renderEngagement } from './engagement.js';
 import { renderList, setProgress, showView } from './ui.js';
 
-const VERDICT_MAP = {
-  es: {
-    discard: 'DESCARTAR', rejected: 'DESCARTAR', reject: 'DESCARTAR', 'do not build': 'NO CONSTRUIR TODAVÍA',
-    reformulate: 'REFORMULAR Y PROBAR', reshape: 'REFORMULAR Y PROBAR', validate: 'VALIDAR ANTES DE CONSTRUIR',
-    'validate before building': 'VALIDAR ANTES DE CONSTRUIR', 'idea not eligible': 'IDEA NO EVALUABLE'
-  },
-  en: {
-    descartar: 'DISCARD', rechazada: 'DISCARD', rechazado: 'DISCARD', 'no construir todavía': 'DO NOT BUILD YET',
-    reformular: 'REFRAME AND TEST', 'reformular y probar': 'REFRAME AND TEST', validar: 'VALIDATE BEFORE BUILDING',
-    'validar antes de construir': 'VALIDATE BEFORE BUILDING', 'idea no evaluable': 'IDEA NOT ELIGIBLE'
-  }
-};
-
-const PHRASE_MAP = {
-  es: {
-    'insufficient evidence.': 'Sin datos suficientes.',
-    'insufficient evidence': 'Sin datos suficientes.',
-    'not enough data.': 'Sin datos suficientes.',
-    'not enough data': 'Sin datos suficientes.',
-    'no sufficient data.': 'Sin datos suficientes.',
-    'no sufficient data': 'Sin datos suficientes.'
-  },
-  en: {
-    'sin datos suficientes.': 'Insufficient evidence.',
-    'sin datos suficientes': 'Insufficient evidence.',
-    'no hay datos suficientes.': 'Insufficient evidence.',
-    'no hay datos suficientes': 'Insufficient evidence.',
-    'información insuficiente.': 'Insufficient evidence.',
-    'información insuficiente': 'Insufficient evidence.'
-  }
-};
-
-const SPANISH_MARKERS = /\b(el|la|los|las|una|un|para|con|sin|datos|suficientes|riesgo|supuesto|cliente|negocio|mercado|pagar|construir|todavía|prueba|evidencia)\b/gi;
-const ENGLISH_MARKERS = /\b(the|a|an|for|with|without|data|evidence|risk|assumption|customer|business|market|pay|build|test|still|insufficient)\b/gi;
-
-function markerCount(text, pattern) {
-  return (String(text).toLowerCase().match(pattern) || []).length;
-}
-
-function isWrongLanguage(text) {
-  const value = safeText(text);
-  if (!value || value.length < 12) return false;
-  const spanish = markerCount(value, SPANISH_MARKERS);
-  const english = markerCount(value, ENGLISH_MARKERS);
-  return getLocale() === 'en' ? spanish >= 2 && spanish > english : english >= 2 && english > spanish;
-}
-
-function normalizeText(value, fallback = 'runtime.languageMismatch') {
-  const text = safeText(value);
-  if (!text) return '';
-  const mapped = PHRASE_MAP[getLocale()]?.[text.toLowerCase().trim()];
-  if (mapped) return mapped;
-  return isWrongLanguage(text) ? t(fallback) : text;
-}
-
-function normalizeList(values) {
-  if (!Array.isArray(values) || !values.length) return [t('runtime.insufficientEvidence')];
-  const normalized = values.map((item) => normalizeText(item)).filter(Boolean);
-  return normalized.length ? normalized : [t('runtime.insufficientEvidence')];
-}
-
-function normalizeVerdict(value) {
-  const text = safeText(value);
-  if (!text) return t('runtime.defaultVerdict');
-  const key = text.toLowerCase().trim();
-  return VERDICT_MAP[getLocale()]?.[key] || normalizeText(text, 'runtime.defaultVerdict');
-}
-
-export function normalizeReport(report = {}) {
-  const experiment = report.experiment || report.validationExperiment || {};
-  return {
-    ...report,
-    verdict: normalizeVerdict(report.verdict),
-    executiveSummary: normalizeText(report.executiveSummary || report.summary, 'runtime.defaultSummary') || t('runtime.defaultSummary'),
-    strengths: normalizeList(report.strengths),
-    risks: normalizeList(report.risks),
-    criticalAssumptions: normalizeList(report.criticalAssumptions || report.assumptions),
-    doNotBuildYet: normalizeList(report.doNotBuildYet),
-    experiment: {
-      ...experiment,
-      name: normalizeText(experiment.name) || t('runtime.experiment'),
-      steps: normalizeList(experiment.steps)
-    }
-  };
-}
-
-export function renderReport(report = {}) {
-  const normalized = normalizeReport(report);
-  byId('score').textContent = Number.isFinite(Number(normalized.score)) ? Math.round(Number(normalized.score)) : '—';
-  byId('verdict').textContent = normalized.verdict;
-  byId('summary').textContent = normalized.executiveSummary;
-  renderList('strengths', normalized.strengths);
-  renderList('risks', normalized.risks);
-  renderList('assumptions', normalized.criticalAssumptions);
-  renderList('do-not-build', normalized.doNotBuildYet);
-  byId('experiment-name').textContent = normalized.experiment.name;
-  renderList('experiment-steps', normalized.experiment.steps);
-}
-
-export async function revealReport(report) {
-  setProgress(96, t('runtime.reportReady'));
-  await new Promise((resolve) => setTimeout(resolve, 650));
-  renderReport(report);
-  showView('report-view');
-  setProgress(100, t('runtime.completed'));
-}
+const VERDICT_MAP={es:{discard:'DESCARTAR',rejected:'DESCARTAR',reject:'DESCARTAR','do not build':'NO CONSTRUIR TODAVÍA',reformulate:'REFORMULAR Y PROBAR',reshape:'REFORMULAR Y PROBAR',validate:'VALIDAR ANTES DE CONSTRUIR','validate before building':'VALIDAR ANTES DE CONSTRUIR','idea not eligible':'IDEA NO EVALUABLE'},en:{descartar:'DISCARD',rechazada:'DISCARD',rechazado:'DISCARD','no construir todavía':'DO NOT BUILD YET',reformular:'REFRAME AND TEST','reformular y probar':'REFRAME AND TEST',validar:'VALIDATE BEFORE BUILDING','validar antes de construir':'VALIDATE BEFORE BUILDING','idea no evaluable':'IDEA NOT ELIGIBLE'}};
+const PHRASE_MAP={es:{'insufficient evidence.':'Sin datos suficientes.','insufficient evidence':'Sin datos suficientes.','not enough data.':'Sin datos suficientes.','not enough data':'Sin datos suficientes.'},en:{'sin datos suficientes.':'Insufficient evidence.','sin datos suficientes':'Insufficient evidence.','no hay datos suficientes.':'Insufficient evidence.','no hay datos suficientes':'Insufficient evidence.','información insuficiente.':'Insufficient evidence.','información insuficiente':'Insufficient evidence.'}};
+const SPANISH_MARKERS=/\b(el|la|los|las|una|un|para|con|sin|datos|suficientes|riesgo|supuesto|cliente|negocio|mercado|pagar|construir|todavía|prueba|evidencia)\b/gi;
+const ENGLISH_MARKERS=/\b(the|a|an|for|with|without|data|evidence|risk|assumption|customer|business|market|pay|build|test|still|insufficient)\b/gi;
+function markerCount(text,pattern){return(String(text).toLowerCase().match(pattern)||[]).length;}
+function isWrongLanguage(text){const value=safeText(text);if(!value||value.length<12)return false;const spanish=markerCount(value,SPANISH_MARKERS),english=markerCount(value,ENGLISH_MARKERS);return getLocale()==='en'?spanish>=2&&spanish>english:english>=2&&english>spanish;}
+function normalizeText(value,fallback='runtime.languageMismatch'){const text=safeText(value);if(!text)return'';const mapped=PHRASE_MAP[getLocale()]?.[text.toLowerCase().trim()];if(mapped)return mapped;return isWrongLanguage(text)?t(fallback):text;}
+function normalizeList(values){if(!Array.isArray(values)||!values.length)return[t('runtime.insufficientEvidence')];const normalized=values.map(item=>normalizeText(item)).filter(Boolean);return normalized.length?normalized:[t('runtime.insufficientEvidence')];}
+function normalizeVerdict(value){const text=safeText(value);if(!text)return t('runtime.defaultVerdict');const key=text.toLowerCase().trim();return VERDICT_MAP[getLocale()]?.[key]||normalizeText(text,'runtime.defaultVerdict');}
+export function normalizeReport(report={}){const experiment=report.experiment||report.validationExperiment||{};return{...report,verdict:normalizeVerdict(report.verdict),executiveSummary:normalizeText(report.executiveSummary||report.summary,'runtime.defaultSummary')||t('runtime.defaultSummary'),strengths:normalizeList(report.strengths),risks:normalizeList(report.risks),criticalAssumptions:normalizeList(report.criticalAssumptions||report.assumptions),doNotBuildYet:normalizeList(report.doNotBuildYet),experiment:{...experiment,name:normalizeText(experiment.name)||t('runtime.experiment'),steps:normalizeList(experiment.steps)}};}
+function renderInteractiveExperiment(steps){const list=byId('experiment-steps');const label=getLocale()==='en'?'Complete':'Completar';list.innerHTML=steps.map((step,index)=>`<li class="experiment-task"><label><input type="checkbox" data-experiment-step="${index}"><span>${escapeHtml(String(step))}</span></label></li>`).join('');const progress=document.createElement('p');progress.id='experiment-progress';progress.className='helper';list.insertAdjacentElement('afterend',progress);const update=()=>{const boxes=[...document.querySelectorAll('[data-experiment-step]')];const completed=boxes.filter(box=>box.checked).length;progress.textContent=`${completed}/${boxes.length} ${label}`;boxes.forEach(box=>box.closest('li')?.classList.toggle('is-complete',box.checked));};document.querySelectorAll('[data-experiment-step]').forEach(box=>box.addEventListener('change',update));update();}
+export function renderReport(report={}){const normalized=normalizeReport(report);byId('score').textContent=Number.isFinite(Number(normalized.score))?Math.round(Number(normalized.score)):'—';byId('verdict').textContent=normalized.verdict;byId('summary').textContent=normalized.executiveSummary;renderList('strengths',normalized.strengths);renderList('risks',normalized.risks);renderList('assumptions',normalized.criticalAssumptions);renderList('do-not-build',normalized.doNotBuildYet);byId('experiment-name').textContent=normalized.experiment.name;document.getElementById('experiment-progress')?.remove();renderInteractiveExperiment(normalized.experiment.steps);renderEngagement();}
+export async function revealReport(report){setProgress(96,t('runtime.reportReady'));await new Promise(resolve=>setTimeout(resolve,650));renderReport(report);showView('report-view');setProgress(100,t('runtime.completed'));}
