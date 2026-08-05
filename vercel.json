@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "functions": {
+    "api/analyze.js": {
+      "maxDuration": 30
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/analyze",
+      "dest": "/api/analyze.js"
+    },
+    {
+      "src": "/api/feedback",
+      "dest": "/api/feedback.js"
+    },
+    {
+      "src": "/api/event",
+      "dest": "/api/event.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
