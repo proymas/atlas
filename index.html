@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#050a14" />
-  <title>Atlas — Pon a prueba tu idea antes de construir</title>
-  <meta name="description" content="Atlas convierte tu idea de negocio en riesgos, supuestos críticos y una prueba concreta antes de que inviertas meses construyéndola." />
+  <title>Atlas</title>
+  <meta name="description" content="Atlas" />
   <link rel="stylesheet" href="/assets/tokens.css" />
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="stylesheet" href="/assets/landing.css" />
@@ -13,200 +13,93 @@
 <body>
   <header class="site-header">
     <div class="container nav">
-      <a class="brand" href="#top" aria-label="Atlas, volver al inicio">ATLAS <span>BETA 3.1</span></a>
-      <nav aria-label="Navegación principal">
-        <a href="#como-funciona">Cómo funciona</a>
-        <a href="#ejemplo">Qué recibes</a>
-        <a href="#principios">Principios</a>
+      <a class="brand" href="#top" aria-label="Atlas">ATLAS <span>BETA 3.2</span></a>
+      <nav aria-label="Main navigation">
+        <a href="#como-funciona" data-i18n="nav.how"></a>
+        <a href="#ejemplo" data-i18n="nav.example"></a>
+        <a href="#principios" data-i18n="nav.principles"></a>
       </nav>
-      <a class="button button-small" href="#validator">Poner a prueba mi idea</a>
+      <div class="nav-actions">
+        <div class="language-switcher" aria-label="Language selector">
+          <button type="button" data-locale="es">ES</button><span>/</span><button type="button" data-locale="en">EN</button>
+        </div>
+        <a class="button button-small" href="#validator" data-i18n="nav.try"></a>
+      </div>
     </div>
   </header>
 
   <main id="top">
     <section class="hero hero-premium container" aria-labelledby="hero-title">
       <div class="hero-copy-block">
-        <p class="eyebrow">Atlas Validator · Beta privada</p>
-        <h1 id="hero-title">Pon a prueba tu idea<br /><span>antes de construirla.</span></h1>
-        <p class="hero-copy">Atlas te ayuda a separar lo que sabes de lo que solo estás suponiendo. Responde unas preguntas y recibe los riesgos, las hipótesis críticas y la prueba más útil que puedes ejecutar ahora.</p>
+        <p class="eyebrow" data-i18n="hero.eyebrow"></p>
+        <h1 id="hero-title"><span data-i18n="hero.title"></span><br /><span data-i18n="hero.titleAccent"></span></h1>
+        <p class="hero-copy" data-i18n="hero.copy"></p>
         <div class="hero-actions hero-actions-row">
-          <a class="button" href="#validator">Analizar mi idea</a>
-          <a class="secondary-link" href="#ejemplo">Ver qué recibiré</a>
+          <a class="button" href="#validator" data-i18n="hero.cta"></a>
+          <a class="secondary-link" href="#ejemplo" data-i18n="hero.secondary"></a>
         </div>
-        <p class="hero-note">Sin registro · Unos 3 minutos · Resultado accionable</p>
+        <p class="hero-note" data-i18n="hero.note"></p>
       </div>
-
-      <aside class="hero-proof" aria-label="Vista previa del resultado">
-        <div class="proof-topline"><span>Informe Atlas</span><span>72/100</span></div>
-        <p class="proof-label">DECISIÓN RECOMENDADA</p>
-        <h2>Valida la demanda antes de construir</h2>
-        <p>El problema parece real, pero todavía no hay evidencia suficiente de que puedas captar clientes y cobrarles de forma repetible.</p>
+      <aside class="hero-proof" aria-label="Report preview">
+        <div class="proof-topline"><span data-i18n="proof.report"></span><span>72/100</span></div>
+        <p class="proof-label" data-i18n="proof.verdictLabel"></p>
+        <h2 data-i18n="proof.verdict"></h2>
+        <p data-i18n="proof.summary"></p>
         <div class="proof-metrics">
-          <span><strong>3</strong> señales favorables</span>
-          <span><strong>4</strong> riesgos abiertos</span>
-          <span><strong>1</strong> próxima prueba</span>
+          <span><strong>3</strong> <span data-i18n="proof.strengths"></span></span>
+          <span><strong>4</strong> <span data-i18n="proof.risks"></span></span>
+          <span><strong>1</strong> <span data-i18n="proof.experiment"></span></span>
         </div>
       </aside>
     </section>
 
-    <section class="trust-strip" aria-label="Propuesta de valor">
-      <div class="container trust-grid">
-        <p>No adivina el futuro.</p>
-        <p>No confunde entusiasmo con evidencia.</p>
-        <p>Te muestra qué debes demostrar.</p>
-      </div>
-    </section>
+    <section class="trust-strip"><div class="container trust-grid"><p data-i18n="trust.0"></p><p data-i18n="trust.1"></p><p data-i18n="trust.2"></p></div></section>
 
     <section id="como-funciona" class="section container story-section">
-      <div class="section-heading section-heading-left">
-        <p class="eyebrow">Cómo funciona</p>
-        <h2>De “creo que funcionará” a “sé qué comprobar”.</h2>
-        <p>Atlas adapta el análisis a tu idea. No busca darte la razón: busca encontrar la pregunta que más puede cambiar tu decisión.</p>
-      </div>
+      <div class="section-heading section-heading-left"><p class="eyebrow" data-i18n="process.eyebrow"></p><h2 data-i18n="process.title"></h2><p data-i18n="process.copy"></p></div>
       <div class="process-grid">
-        <article>
-          <span class="step-number">01</span>
-          <h3>Describe la oportunidad</h3>
-          <p>Cuenta qué problema quieres resolver, para quién y cómo esperas crear y capturar valor.</p>
-        </article>
-        <article>
-          <span class="step-number">02</span>
-          <h3>Expón tus supuestos</h3>
-          <p>Atlas formula preguntas específicas para descubrir lagunas, contradicciones y afirmaciones todavía no demostradas.</p>
-        </article>
-        <article>
-          <span class="step-number">03</span>
-          <h3>Decide el siguiente paso</h3>
-          <p>Recibes una lectura razonada y una prueba concreta para continuar, reformular o detenerte antes de gastar más.</p>
-        </article>
+        <article><span class="step-number">01</span><h3 data-i18n="process.steps.0.0"></h3><p data-i18n="process.steps.0.1"></p></article>
+        <article><span class="step-number">02</span><h3 data-i18n="process.steps.1.0"></h3><p data-i18n="process.steps.1.1"></p></article>
+        <article><span class="step-number">03</span><h3 data-i18n="process.steps.2.0"></h3><p data-i18n="process.steps.2.1"></p></article>
       </div>
     </section>
 
-    <section id="principios" class="section principle-manifesto">
-      <div class="container manifesto-layout">
-        <div>
-          <p class="eyebrow">Principios Atlas</p>
-          <h2>Menos convicción.<br />Más evidencia.</h2>
-        </div>
-        <div class="manifesto-copy">
-          <p>Una idea puede sonar brillante y seguir apoyándose en supuestos frágiles.</p>
-          <p>Atlas no promete éxito, no inventa mercado y no convierte opiniones en hechos.</p>
-          <p>Su trabajo es ayudarte a descubrir qué puede invalidar tu idea antes de que el coste de hacerlo sea demasiado alto.</p>
-          <strong>No preguntes solo “¿es una buena idea?”. Pregunta “¿qué tendría que ser cierto para que merezca la pena construirla?”.</strong>
-        </div>
-      </div>
-    </section>
+    <section id="principios" class="section principle-manifesto"><div class="container manifesto-layout">
+      <div><p class="eyebrow" data-i18n="principles.eyebrow"></p><h2 data-i18n-html="principles.title"></h2></div>
+      <div class="manifesto-copy"><p data-i18n="principles.lines.0"></p><p data-i18n="principles.lines.1"></p><p data-i18n="principles.lines.2"></p><strong data-i18n="principles.strong"></strong></div>
+    </div></section>
 
     <section id="ejemplo" class="section container example-section">
-      <div class="section-heading">
-        <p class="eyebrow">Qué recibes</p>
-        <h2>Un informe para decidir, no para sentirte bien.</h2>
-        <p>Atlas organiza la información en señales favorables, riesgos abiertos, supuestos críticos y una próxima prueba medible.</p>
-      </div>
-      <article class="report-preview">
-        <header>
-          <div>
-            <p class="eyebrow">Idea analizada</p>
-            <h3>Marketplace de veterinarios a domicilio</h3>
-          </div>
-          <div class="preview-score"><strong>74</strong><span>/100</span></div>
-        </header>
-        <div class="preview-summary">
-          <span>VALIDAR LA DEMANDA ANTES DE DESARROLLAR</span>
-          <p>El problema es reconocible y urgente, pero el modelo depende de concentrar suficiente oferta local y encontrar propietarios dispuestos a pagar una prima por la comodidad.</p>
-        </div>
+      <div class="section-heading"><p class="eyebrow" data-i18n="example.eyebrow"></p><h2 data-i18n="example.title"></h2><p data-i18n="example.copy"></p></div>
+      <article class="report-preview"><header><div><p class="eyebrow" data-i18n="example.idea"></p><h3 data-i18n="example.name"></h3></div><div class="preview-score"><strong>74</strong><span>/100</span></div></header>
+        <div class="preview-summary"><span data-i18n="example.status"></span><p data-i18n="example.summary"></p></div>
         <div class="preview-columns">
-          <section><h4>Señal favorable</h4><p>El cliente sufre una fricción clara cuando trasladar al animal resulta difícil o estresante.</p></section>
-          <section><h4>Riesgo principal</h4><p>Conseguir disponibilidad inmediata de profesionales en cada zona sin elevar demasiado el coste.</p></section>
-          <section><h4>Supuesto crítico</h4><p>Existe suficiente demanda local dispuesta a pagar más por evitar el desplazamiento.</p></section>
-          <section><h4>Próxima prueba</h4><p>Conseguir diez solicitudes reales en un solo barrio y atenderlas manualmente antes de desarrollar la plataforma.</p></section>
+          <section><h4 data-i18n="example.cards.0.0"></h4><p data-i18n="example.cards.0.1"></p></section>
+          <section><h4 data-i18n="example.cards.1.0"></h4><p data-i18n="example.cards.1.1"></p></section>
+          <section><h4 data-i18n="example.cards.2.0"></h4><p data-i18n="example.cards.2.1"></p></section>
+          <section><h4 data-i18n="example.cards.3.0"></h4><p data-i18n="example.cards.3.1"></p></section>
         </div>
       </article>
     </section>
 
-    <section id="validator" class="section validator-section">
-      <div class="container validator-layout">
-        <aside class="validator-intro">
-          <p class="eyebrow">Atlas Validator</p>
-          <h2>Descubre qué necesitas demostrar.</h2>
-          <p>Describe la idea con honestidad. Atlas te hará preguntas para separar evidencia, intuiciones y riesgos antes de proponerte el siguiente experimento.</p>
-          <ul>
-            <li>Preguntas adaptadas a tu idea</li>
-            <li>Riesgos y supuestos priorizados</li>
-            <li>Próxima prueba concreta y medible</li>
-          </ul>
-        </aside>
+    <section id="validator" class="section validator-section"><div class="container validator-layout">
+      <aside class="validator-intro"><p class="eyebrow" data-i18n="validator.eyebrow"></p><h2 data-i18n="validator.title"></h2><p data-i18n="validator.copy"></p><ul><li data-i18n="validator.bullets.0"></li><li data-i18n="validator.bullets.1"></li><li data-i18n="validator.bullets.2"></li></ul></aside>
+      <section class="app-card" aria-live="polite">
+        <div class="progress-row"><span id="step-label"></span><span id="progress-label">0 %</span></div><div class="progress"><span id="progress-bar"></span></div>
+        <div id="start-view"><label for="idea" data-i18n="validator.label"></label><p class="helper" data-i18n="validator.helper"></p><textarea id="idea" data-i18n-placeholder="validator.placeholder"></textarea><button id="start-button" class="button button-full" data-i18n="validator.analyze"></button><p id="start-error" class="error" role="alert"></p></div>
+        <div id="question-view" class="hidden"><p id="question-reason" class="eyebrow"></p><h3 id="question-title"></h3><textarea id="answer" data-i18n-placeholder="validator.answerPlaceholder"></textarea><button id="answer-button" class="button button-full" data-i18n="validator.continue"></button><button id="restart-button" class="text-button" data-i18n="validator.restart"></button></div>
+        <div id="loading-view" class="hidden loading-view"><div class="spinner" aria-hidden="true"></div><h3 data-i18n="validator.loadingTitle"></h3><p id="loading-copy"></p></div>
+        <div id="report-view" class="hidden report-view"><p class="eyebrow" data-i18n="validator.verdict"></p><div class="report-header"><div><span id="score">—</span><small>/100</small></div><div><h3 id="verdict">—</h3><p id="summary"></p></div></div>
+          <div class="report-grid"><article><h4 data-i18n="validator.strengths"></h4><ul id="strengths"></ul></article><article><h4 data-i18n="validator.risks"></h4><ul id="risks"></ul></article><article><h4 data-i18n="validator.assumptions"></h4><ul id="assumptions"></ul></article><article><h4 data-i18n="validator.dont"></h4><ul id="do-not-build"></ul></article><article class="experiment"><h4 id="experiment-name"></h4><ol id="experiment-steps"></ol></article></div>
+          <div class="report-actions"><button id="share-button" class="secondary-button" data-i18n="validator.share"></button><button id="pdf-button" class="button" data-i18n="validator.pdf"></button><button id="new-analysis-button" class="text-button" data-i18n="validator.another"></button></div>
+        </div>
+      </section>
+    </div></section>
 
-        <section class="app-card" aria-live="polite">
-          <div class="progress-row">
-            <span id="step-label">Paso 1 de 1</span>
-            <span id="progress-label">0 %</span>
-          </div>
-          <div class="progress"><span id="progress-bar"></span></div>
-
-          <div id="start-view">
-            <label for="idea">¿Qué idea quieres poner a prueba?</label>
-            <p class="helper">Explica el problema, quién lo sufre y cómo funcionaría el negocio.</p>
-            <textarea id="idea" placeholder="Ejemplo: una newsletter de pago que ayude a autónomos a encontrar subvenciones relevantes"></textarea>
-            <button id="start-button" class="button button-full">Empezar análisis</button>
-            <p id="start-error" class="error" role="alert"></p>
-          </div>
-
-          <div id="question-view" class="hidden">
-            <p id="question-reason" class="eyebrow"></p>
-            <h3 id="question-title"></h3>
-            <textarea id="answer" placeholder="Responde con datos, ejemplos o señales reales siempre que puedas"></textarea>
-            <button id="answer-button" class="button button-full">Continuar</button>
-            <button id="restart-button" class="text-button">Reiniciar análisis</button>
-          </div>
-
-          <div id="loading-view" class="hidden loading-view">
-            <div class="spinner" aria-hidden="true"></div>
-            <h3>Atlas está poniendo a prueba tu idea</h3>
-            <p id="loading-copy">Separando hechos, supuestos y riesgos…</p>
-          </div>
-
-          <div id="report-view" class="hidden report-view">
-            <p class="eyebrow">Resultado</p>
-            <div class="report-header">
-              <div><span id="score">—</span><small>/100</small></div>
-              <div><h3 id="verdict">—</h3><p id="summary"></p></div>
-            </div>
-            <div class="report-grid">
-              <article><h4>Señales favorables</h4><ul id="strengths"></ul></article>
-              <article><h4>Riesgos abiertos</h4><ul id="risks"></ul></article>
-              <article><h4>Supuestos críticos</h4><ul id="assumptions"></ul></article>
-              <article><h4>No construyas todavía</h4><ul id="do-not-build"></ul></article>
-              <article class="experiment"><h4 id="experiment-name">Próxima prueba</h4><ol id="experiment-steps"></ol></article>
-            </div>
-            <div class="report-actions">
-              <button id="share-button" class="secondary-button">Compartir</button>
-              <button id="pdf-button" class="button">Descargar PDF</button>
-              <button id="new-analysis-button" class="text-button">Analizar otra idea</button>
-            </div>
-          </div>
-        </section>
-      </div>
-    </section>
-
-    <section class="section final-cta">
-      <div class="container final-cta-inner">
-        <p class="eyebrow">Antes de invertir más</p>
-        <h2>Dedica cinco minutos a descubrir la prueba que puede ahorrarte meses.</h2>
-        <a class="button" href="#validator">Poner a prueba mi idea</a>
-      </div>
-    </section>
+    <section class="section final-cta"><div class="container final-cta-inner"><p class="eyebrow" data-i18n="cta.eyebrow"></p><h2 data-i18n="cta.title"></h2><a class="button" href="#validator" data-i18n="cta.button"></a></div></section>
   </main>
 
-  <footer class="footer footer-premium">
-    <div class="container footer-grid">
-      <div><a class="brand" href="#top">ATLAS</a><p>Mejores decisiones antes de construir.</p></div>
-      <div><strong>Producto</strong><a href="#como-funciona">Cómo funciona</a><a href="#ejemplo">Qué recibes</a><a href="#validator">Validator</a></div>
-      <div><strong>Atlas</strong><a href="#principios">Principios</a><span>Beta privada</span><span>Lanzamiento después de Beta 3.4</span></div>
-    </div>
-    <div class="container footer-bottom"><span>Atlas Beta 3.1.3</span><span>El análisis es orientativo y no sustituye investigación de mercado.</span></div>
-  </footer>
-
+  <footer class="footer footer-premium"><div class="container footer-grid"><div><a class="brand" href="#top">ATLAS</a><p data-i18n="footer.tagline"></p></div><div><strong data-i18n="footer.product"></strong><a href="#como-funciona" data-i18n="nav.how"></a><a href="#ejemplo" data-i18n="nav.example"></a><a href="#validator">Validator</a></div><div><strong data-i18n="footer.principles"></strong><a href="#principios" data-i18n="footer.manifesto"></a><span data-i18n="footer.private"></span><span data-i18n="footer.noPublish"></span></div></div><div class="container footer-bottom"><span>Atlas Beta 3.2</span><span data-i18n="footer.disclaimer"></span></div></footer>
   <script type="module" src="/src/app.js"></script>
 </body>
 </html>
