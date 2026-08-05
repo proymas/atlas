@@ -15,24 +15,90 @@ const VERDICT_MAP = {
   }
 };
 
+const PHRASE_MAP = {
+  es: {
+    'insufficient evidence.': 'Sin datos suficientes.',
+    'insufficient evidence': 'Sin datos suficientes.',
+    'not enough data.': 'Sin datos suficientes.',
+    'not enough data': 'Sin datos suficientes.',
+    'no sufficient data.': 'Sin datos suficientes.',
+    'no sufficient data': 'Sin datos suficientes.'
+  },
+  en: {
+    'sin datos suficientes.': 'Insufficient evidence.',
+    'sin datos suficientes': 'Insufficient evidence.',
+    'no hay datos suficientes.': 'Insufficient evidence.',
+    'no hay datos suficientes': 'Insufficient evidence.',
+    'información insuficiente.': 'Insufficient evidence.',
+    'información insuficiente': 'Insufficient evidence.'
+  }
+};
+
+const SPANISH_MARKERS = /\b(el|la|los|las|una|un|para|con|sin|datos|suficientes|riesgo|supuesto|cliente|negocio|mercado|pagar|construir|todavía|prueba|evidencia)\b/gi;
+const ENGLISH_MARKERS = /\b(the|a|an|for|with|without|data|evidence|risk|assumption|customer|business|market|pay|build|test|still|insufficient)\b/gi;
+
+function markerCount(text, pattern) {
+  return (String(text).toLowerCase().match(pattern) || []).length;
+}
+
+function isWrongLanguage(text) {
+  const value = safeText(text);
+  if (!value || value.length < 12) return false;
+  const spanish = markerCount(value, SPANISH_MARKERS);
+  const english = markerCount(value, ENGLISH_MARKERS);
+  return getLocale() === 'en' ? spanish >= 2 && spanish > english : english >= 2 && english > spanish;
+}
+
+function normalizeText(value, fallback = 'runtime.languageMismatch') {
+  const text = safeText(value);
+  if (!text) return '';
+  const mapped = PHRASE_MAP[getLocale()]?.[text.toLowerCase().trim()];
+  if (mapped) return mapped;
+  return isWrongLanguage(text) ? t(fallback) : text;
+}
+
+function normalizeList(values) {
+  if (!Array.isArray(values) || !values.length) return [t('runtime.insufficientEvidence')];
+  const normalized = values.map((item) => normalizeText(item)).filter(Boolean);
+  return normalized.length ? normalized : [t('runtime.insufficientEvidence')];
+}
+
 function normalizeVerdict(value) {
   const text = safeText(value);
   if (!text) return t('runtime.defaultVerdict');
   const key = text.toLowerCase().trim();
-  return VERDICT_MAP[getLocale()]?.[key] || text;
+  return VERDICT_MAP[getLocale()]?.[key] || normalizeText(text, 'runtime.defaultVerdict');
+}
+
+export function normalizeReport(report = {}) {
+  const experiment = report.experiment || report.validationExperiment || {};
+  return {
+    ...report,
+    verdict: normalizeVerdict(report.verdict),
+    executiveSummary: normalizeText(report.executiveSummary || report.summary, 'runtime.defaultSummary') || t('runtime.defaultSummary'),
+    strengths: normalizeList(report.strengths),
+    risks: normalizeList(report.risks),
+    criticalAssumptions: normalizeList(report.criticalAssumptions || report.assumptions),
+    doNotBuildYet: normalizeList(report.doNotBuildYet),
+    experiment: {
+      ...experiment,
+      name: normalizeText(experiment.name) || t('runtime.experiment'),
+      steps: normalizeList(experiment.steps)
+    }
+  };
 }
 
 export function renderReport(report = {}) {
-  byId('score').textContent = Number.isFinite(Number(report.score)) ? Math.round(Number(report.score)) : '—';
-  byId('verdict').textContent = normalizeVerdict(report.verdict);
-  byId('summary').textContent = safeText(report.executiveSummary || report.summary) || t('runtime.defaultSummary');
-  renderList('strengths', report.strengths);
-  renderList('risks', report.risks);
-  renderList('assumptions', report.criticalAssumptions || report.assumptions);
-  renderList('do-not-build', report.doNotBuildYet);
-  const experiment = report.experiment || report.validationExperiment || {};
-  byId('experiment-name').textContent = safeText(experiment.name) || t('runtime.experiment');
-  renderList('experiment-steps', experiment.steps);
+  const normalized = normalizeReport(report);
+  byId('score').textContent = Number.isFinite(Number(normalized.score)) ? Math.round(Number(normalized.score)) : '—';
+  byId('verdict').textContent = normalized.verdict;
+  byId('summary').textContent = normalized.executiveSummary;
+  renderList('strengths', normalized.strengths);
+  renderList('risks', normalized.risks);
+  renderList('assumptions', normalized.criticalAssumptions);
+  renderList('do-not-build', normalized.doNotBuildYet);
+  byId('experiment-name').textContent = normalized.experiment.name;
+  renderList('experiment-steps', normalized.experiment.steps);
 }
 
 export async function revealReport(report) {
