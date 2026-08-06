@@ -3,6 +3,7 @@ const MODE_BY_STAGE = { screen: 'questions', report: 'report' };
 
 const PROTECTIVE_CONTEXT = /\b(prevenir|prevencion|proteger|proteccion|detectar|deteccion|defender|defensa|seguridad|ciberseguridad|anti[- ]?fraude|educacion|auditoria|cumplimiento|mitigar|prevent|protect|detect|defend|security|cybersecurity|anti[- ]?fraud|education|audit|compliance|mitigate)\b/i;
 const PROHIBITED_PATTERNS = [/\bsim\s*swap(?:ping)?\b/i,/\bphishing\s*(?:kit|service|as a service)?\b/i,/\brobo\s+de\s+credenciales\b/i,/\bcredential\s+(?:theft|stealing|harvesting)\b/i,/\bcarding\b/i,/\bransomware\s*(?:as a service|service)?\b/i,/\bmalware\s*(?:as a service|service)?\b/i,/\brobo\s+de\s+identidad\b/i,/\bidentity\s+theft\b/i];
+const HISTORICAL_QUESTION = /\b(cu[aá]nt(?:o|os|as).*vend|ventas del mes pasado|clientes actuales|facturaci[oó]n actual|retenci[oó]n|churn|mrr|arr|how many.*sold|last month.*sales|current customers|current revenue|retention|churn)\b/i;
 
 const clean = value => String(value || '').trim();
 const array = value => Array.isArray(value) ? value.filter(Boolean) : [];
@@ -25,209 +26,206 @@ function blocked(locale) {
 
 function inferMaturity(body) {
   const text = requestText(body);
-  const operating = /\b(vendo|vendemos|clientes actuales|facturo|facturamos|ingresos mensuales|ventas mensuales|mrr|arr|churn|retencion|conversion actual|we sell|current customers|monthly revenue|monthly sales|retention|current conversion)\b/i;
-  const testing = /\b(prototipo|landing|entrevist|preventa|piloto|lista de espera|primeros clientes|primeras ventas|mvp|prototype|interview|preorder|pilot|waitlist|first customers|first sales)\b/i;
-  const preparing = /\b(proveedor|inventario|presupuesto|precio estimado|canal|perfil de cliente|supplier|inventory|budget|estimated price|channel|customer profile)\b/i;
-  if (operating.test(text)) return 'operating';
-  if (testing.test(text)) return 'testing';
-  if (preparing.test(text)) return 'preparing';
+  if (/\b(vendo|vendemos|clientes actuales|facturo|facturamos|ingresos mensuales|ventas mensuales|mrr|arr|churn|retencion|we sell|current customers|monthly revenue|monthly sales|retention)\b/i.test(text)) return 'operating';
+  if (/\b(prototipo|landing|entrevist|preventa|piloto|lista de espera|primeros clientes|primeras ventas|mvp|prototype|interview|preorder|pilot|waitlist|first customers|first sales)\b/i.test(text)) return 'testing';
+  if (/\b(proveedor|inventario|presupuesto|precio estimado|canal|perfil de cliente|supplier|inventory|budget|estimated price|channel|customer profile)\b/i.test(text)) return 'preparing';
   return 'idea';
 }
 
-function languageRule(locale) {
-  return locale === 'en'
-    ? 'OUTPUT LANGUAGE: ENGLISH ONLY. Never mix languages.'
-    : 'IDIOMA DE SALIDA: SOLO ESPAÑOL. Nunca mezcles idiomas.';
+function inferProfile(body) {
+  const text = requestText(body);
+  const profiles = [
+    ['resale', /\b(vinted|wallapop|reventa|revender|segunda mano|thrift|resell|resale|second.hand)\b/i],
+    ['marketplace', /\b(marketplace|plataforma que conecta|conectar .* con|two.sided|oferta y demanda)\b/i],
+    ['saas', /\b(saas|software|app|aplicaci[oó]n|suscripci[oó]n|dashboard|automatizar|api|platform software)\b/i],
+    ['local', /\b(restaurante|cafeter[ií]a|peluquer[ií]a|gimnasio|tienda local|domicilio|barrio|local business|restaurant|salon|gym|neighborhood)\b/i],
+    ['content', /\b(newsletter|curso|comunidad|podcast|contenido|membres[ií]a|creator|course|community|content|membership)\b/i],
+    ['service', /\b(consultor[ií]a|agencia|freelance|servicio profesional|asesor[ií]a|consulting|agency|professional service|freelancer)\b/i],
+    ['ecommerce', /\b(ecommerce|tienda online|shopify|dropshipping|marca de producto|online store|product brand)\b/i]
+  ];
+  return profiles.find(([, pattern]) => pattern.test(text))?.[0] || 'generic';
 }
+
+function inferMode(body, maturity) {
+  if (maturity === 'idea' || maturity === 'preparing') return 'orientation';
+  const text = requestText(body);
+  const evidence = /\b(pago|pagaron|reserva|preventa|entrevist|clics|conversion|venta|clientes|payment|paid|booking|preorder|interview|clicks|conversion|sale|customers)\b/i;
+  return evidence.test(text) ? 'validation' : 'orientation';
+}
+
+function languageRule(locale) {
+  return locale === 'en' ? 'OUTPUT LANGUAGE: ENGLISH ONLY. Never mix languages.' : 'IDIOMA DE SALIDA: SOLO ESPAÑOL. Nunca mezcles idiomas.';
+}
+
+const PROFILE_GUIDANCE = {
+  resale: {
+    es: 'REVENTA: pregunta por nicho, acceso a inventario, criterio de selección, coste máximo por unidad, precio comparable, comisiones, logística, velocidad de publicación y tamaño del lote de prueba.',
+    en: 'RESALE: ask about niche, inventory access, selection criteria, maximum unit cost, comparable prices, fees, logistics, listing capacity and test-batch size.'
+  },
+  service: {
+    es: 'SERVICIOS: pregunta por cliente concreto, problema urgente, resultado prometido, alcance, capacidad de entrega, precio inicial, canal de captación y una oferta manual vendible.',
+    en: 'SERVICES: ask about the specific client, urgent problem, promised outcome, scope, delivery capacity, initial price, acquisition channel and a sellable manual offer.'
+  },
+  saas: {
+    es: 'SAAS: pregunta por flujo de trabajo actual, frecuencia del problema, usuario y comprador, alternativa manual, acceso a usuarios, precio plausible y prueba sin construir software.',
+    en: 'SAAS: ask about the current workflow, problem frequency, user and buyer, manual alternative, access to users, plausible price and a test without building software.'
+  },
+  marketplace: {
+    es: 'MARKETPLACE: pregunta por lado inicial, problema de liquidez, oferta mínima, demanda inicial, confianza, transacción manual y cómo evitar construir antes de demostrar intercambios.',
+    en: 'MARKETPLACE: ask which side starts first, liquidity risk, minimum supply, initial demand, trust, manual transactions and how to prove exchanges before building.'
+  },
+  local: {
+    es: 'NEGOCIO LOCAL: pregunta por zona, cliente, frecuencia, capacidad, costes fijos evitables, ticket, captación local y una prueba en un área pequeña.',
+    en: 'LOCAL BUSINESS: ask about area, customer, frequency, capacity, avoidable fixed costs, ticket size, local acquisition and a small-area test.'
+  },
+  content: {
+    es: 'CONTENIDO/COMUNIDAD: pregunta por audiencia estrecha, transformación, hábito actual, acceso, formato, cadencia sostenible, disposición a pagar y una edición piloto.',
+    en: 'CONTENT/COMMUNITY: ask about narrow audience, transformation, current habit, access, format, sustainable cadence, willingness to pay and a pilot edition.'
+  },
+  ecommerce: {
+    es: 'ECOMMERCE: pregunta por producto inicial, proveedor, coste puesto en destino, margen, devoluciones, diferenciación, canal y una preventa o lote pequeño.',
+    en: 'ECOMMERCE: ask about initial product, supplier, landed cost, margin, returns, differentiation, channel and a preorder or small batch.'
+  },
+  generic: {
+    es: 'GENERAL: pregunta por oferta inicial, primer cliente, disparador de compra, entrega, economía, acceso al mercado y microprueba.',
+    en: 'GENERAL: ask about initial offer, first customer, buying trigger, delivery, economics, market access and a micro-test.'
+  }
+};
 
 function maturityRule(maturity, locale) {
-  const rules = {
-    idea: locale === 'en'
-      ? 'MATURITY: IDEA ONLY. The person has not launched. Never ask for past sales, current customers, historical conversion, retention, revenue or metrics they cannot have. Ask about choices they can make now, accessible resources, reasonable estimates, comparable behavior and a first low-cost test.'
-      : 'MADUREZ: SOLO IDEA. La persona aún no ha lanzado. Nunca preguntes por ventas pasadas, clientes actuales, conversión histórica, retención, facturación ni métricas que no puede tener. Pregunta por decisiones que puede tomar ahora, recursos accesibles, estimaciones razonables, conductas comparables y una primera prueba barata.',
-    preparing: locale === 'en'
-      ? 'MATURITY: PREPARING. The person is defining suppliers, offer or channel but has not validated demand. Ask about assumptions, accessible inventory/resources, estimated unit economics and the smallest real-market test. Do not demand operating history.'
-      : 'MADUREZ: PREPARACIÓN. La persona está definiendo proveedores, oferta o canal, pero todavía no ha validado demanda. Pregunta por supuestos, inventario o recursos accesibles, economía unitaria estimada y la prueba mínima en mercado. No exijas historial operativo.',
-    testing: locale === 'en'
-      ? 'MATURITY: EARLY TESTING. Ask about the tests already attempted and observable reactions, but do not assume a stable business. Distinguish learning signals from repeatable traction.'
-      : 'MADUREZ: PRIMERAS PRUEBAS. Pregunta por las pruebas realizadas y reacciones observables, pero no asumas que existe un negocio estable. Distingue señales de aprendizaje de tracción repetible.',
-    operating: locale === 'en'
-      ? 'MATURITY: OPERATING. Historical metrics are appropriate only when directly relevant. Prefer recent cohorts, margins, repeat behavior and bottlenecks over vanity metrics.'
-      : 'MADUREZ: EN MARCHA. Las métricas históricas son apropiadas solo cuando sean relevantes. Prioriza cohortes recientes, márgenes, repetición y cuellos de botella frente a métricas vanidosas.'
+  const es = {
+    idea: 'ETAPA IDEA: no existe historial. Nunca pidas ventas, clientes, conversión, retención ni facturación. Ayuda a concretar decisiones y una primera prueba barata.',
+    preparing: 'ETAPA PREPARACIÓN: ya hay decisiones preliminares, pero no demanda validada. Pide supuestos concretos, recursos accesibles y estimaciones; no exijas métricas operativas.',
+    testing: 'ETAPA PRUEBAS: pregunta por experimentos y reacciones observables sin asumir estabilidad.',
+    operating: 'ETAPA EN MARCHA: puedes pedir métricas recientes cuando sean relevantes, priorizando margen, repetición y cuellos de botella.'
   };
-  return rules[maturity];
+  const en = {
+    idea: 'IDEA STAGE: there is no history. Never request sales, customers, conversion, retention or revenue. Help define choices and a cheap first test.',
+    preparing: 'PREPARATION STAGE: preliminary choices exist but demand is unvalidated. Request explicit assumptions, accessible resources and estimates; do not demand operating metrics.',
+    testing: 'TESTING STAGE: ask about experiments and observable reactions without assuming stability.',
+    operating: 'OPERATING STAGE: recent metrics are appropriate when relevant, prioritizing margin, repeat behavior and bottlenecks.'
+  };
+  return (locale === 'en' ? en : es)[maturity];
 }
 
-function questionContract(locale, maturity) {
-  return `${languageRule(locale)}\n${maturityRule(maturity, locale)}\n${locale === 'en' ? `
-ATLAS QUESTION CONTRACT
-Generate exactly 7 concise questions tailored to the idea and its maturity.
-The questions must help the person START or VALIDATE the business, not interrogate them as if it already exists.
-Use progressive difficulty: clarify the offer, define the first buyer, understand the buying trigger, choose supply/delivery, estimate unit economics, choose acquisition, then define a seven-day test.
-For an idea-stage resale business such as selling on Vinted, suitable questions include: product niche, source of initial inventory, maximum purchase cost, expected resale range, fees/shipping, listing capacity and a test batch. An unsuitable question is “How many items did you sell last month?” unless the user explicitly says they are already selling.
-Never ask for information already present. Never invent business history. If evidence does not exist yet, ask how the user could obtain it.
-Return JSON only: {"questions":[{"question":"...","reason":"...","dimension":"offer|customer|trigger|supply|economics|distribution|validation"}],"maturity":"${maturity}"}.` : `
-CONTRATO DE PREGUNTAS ATLAS
-Genera exactamente 7 preguntas breves adaptadas a la idea y a su madurez.
-Las preguntas deben ayudar a EMPEZAR o VALIDAR el negocio, no interrogar a la persona como si ya estuviera funcionando.
-Usa dificultad progresiva: aclarar la oferta, definir el primer comprador, comprender el momento de compra, elegir suministro/entrega, estimar economía unitaria, escoger adquisición y definir una prueba de siete días.
-Para una idea inicial de reventa en Vinted, son adecuadas preguntas sobre nicho de prendas, fuente del primer inventario, coste máximo de compra, rango de reventa, comisiones/envío, capacidad de publicación y lote de prueba. Es inadecuado preguntar «¿cuántas prendas vendiste el mes pasado?» salvo que el usuario diga expresamente que ya vende.
-No repitas información ya aportada. No inventes historial empresarial. Cuando aún no exista evidencia, pregunta cómo podría conseguirla.
-Devuelve solo JSON: {"questions":[{"question":"...","reason":"...","dimension":"offer|customer|trigger|supply|economics|distribution|validation"}],"maturity":"${maturity}"}.`}`;
+function modeRule(mode, locale) {
+  if (locale === 'en') return mode === 'orientation'
+    ? 'MODE: ORIENTATION. Behave like a practical co-founder: help the user make the next decisions, offer answerable choices, and turn uncertainty into a small action. Do not grade missing history as failure.'
+    : 'MODE: VALIDATION. Behave like a rigorous discovery analyst: challenge evidence, compare claims, detect contradictions and demand measurable next steps.';
+  return mode === 'orientation'
+    ? 'MODO: ORIENTACIÓN. Actúa como un cofundador práctico: ayuda a tomar las siguientes decisiones, plantea opciones respondibles y convierte incertidumbre en una acción pequeña. No castigues la falta de historial.'
+    : 'MODO: VALIDACIÓN. Actúa como analista riguroso: cuestiona evidencia, compara afirmaciones, detecta contradicciones y exige siguientes pasos medibles.';
 }
 
-function reportContract(locale, maturity) {
-  return `${languageRule(locale)}\n${maturityRule(maturity, locale)}\n${locale === 'en' ? `
-ATLAS DECISION REPORT CONTRACT
-Evaluate the quality of the opportunity and the next decision, not whether an unlaunched founder already has traction.
-Calibrate evidence to maturity:
-- IDEA: reasonable assumptions can earn partial points when explicit and testable; absence of historical sales is not a failure.
-- PREPARING: reward concrete sourcing, pricing and channel assumptions.
-- TESTING: reward observable responses, reservations, interviews and small transactions.
-- OPERATING: require actual economics and repeat behavior.
-Use five 0-20 dimensions: offer clarity, customer/problem fit, economic plausibility, access/distribution feasibility, validation readiness. Total equals their sum.
-A high score still requires meaningful evidence, but an early idea can receive a constructive mid-range score when the path to evidence is clear.
-Identify contradictions without punishing honest uncertainty. Recommendations must tell the user what to decide or do next.
-Create exactly seven daily tasks appropriate to maturity. For idea-stage businesses, the plan should move from choices and estimates to a tiny market test; it must not assume existing customers.
-Return JSON only with: score, scoreBreakdown, verdict, executiveSummary, strengths, risks, criticalAssumptions, contradictions, doNotBuildYet, recommendations, experiment{name,hypothesis,target,metric,successThreshold,failureThreshold,decisionIfSuccess,decisionIfFailure,days[7],steps}, maturity.` : `
-CONTRATO DEL INFORME DE DECISIÓN ATLAS
-Evalúa la calidad de la oportunidad y la siguiente decisión, no si un fundador sin lanzar ya tiene tracción.
-Calibra la evidencia según madurez:
-- IDEA: los supuestos razonables pueden obtener puntuación parcial cuando son explícitos y comprobables; no tener ventas históricas no es un fallo.
-- PREPARACIÓN: valora supuestos concretos de suministro, precio y canal.
-- PRUEBAS: valora reacciones observables, reservas, entrevistas y pequeñas transacciones.
-- EN MARCHA: exige economía real y comportamiento repetido.
-Usa cinco dimensiones de 0 a 20: claridad de oferta, encaje cliente/problema, plausibilidad económica, viabilidad de acceso/distribución y preparación para validar. El total es su suma.
-Una puntuación alta sigue necesitando evidencia significativa, pero una idea temprana puede obtener una puntuación media constructiva cuando el camino hacia la evidencia está claro.
-Detecta contradicciones sin castigar la incertidumbre honesta. Las recomendaciones deben decir qué decidir o hacer después.
-Crea exactamente siete tareas diarias adecuadas a la madurez. En ideas iniciales, el plan debe avanzar desde decisiones y estimaciones hasta una microprueba de mercado; no debe asumir clientes existentes.
-Devuelve solo JSON con: score, scoreBreakdown, verdict, executiveSummary, strengths, risks, criticalAssumptions, contradictions, doNotBuildYet, recommendations, experiment{name,hypothesis,target,metric,successThreshold,failureThreshold,decisionIfSuccess,decisionIfFailure,days[7],steps}, maturity.`}`;
+function questionContract(locale, maturity, profile, mode) {
+  return `${languageRule(locale)}\n${maturityRule(maturity, locale)}\n${modeRule(mode, locale)}\n${PROFILE_GUIDANCE[profile][locale]}\n${locale === 'en' ? `
+Generate exactly 7 concise, non-overlapping questions. Each must be answerable at the user's stage and useful for starting or validating this specific business.
+Use progressive order: define the first offer; identify the first reachable buyer; clarify the buying trigger; choose supply/delivery; estimate basic economics; choose acquisition; define a seven-day test.
+Never ask for information already supplied. Never invent business history. In orientation mode, when the user does not know an answer, frame the question around a choice or estimate they can make now.
+Return JSON only: {"questions":[{"question":"...","reason":"...","dimension":"offer|customer|trigger|supply|economics|distribution|validation"}],"maturity":"${maturity}","profile":"${profile}","analysisMode":"${mode}"}.` : `
+Genera exactamente 7 preguntas breves y no solapadas. Cada una debe poder responderse en la etapa del usuario y servir para empezar o validar este negocio concreto.
+Orden progresivo: definir la primera oferta; identificar al primer comprador accesible; aclarar el disparador de compra; elegir suministro/entrega; estimar economía básica; escoger captación; definir una prueba de siete días.
+No repitas información aportada ni inventes historial. En modo orientación, cuando el usuario aún no sepa algo, formula la pregunta como una elección o estimación que pueda realizar ahora.
+Devuelve solo JSON: {"questions":[{"question":"...","reason":"...","dimension":"offer|customer|trigger|supply|economics|distribution|validation"}],"maturity":"${maturity}","profile":"${profile}","analysisMode":"${mode}"}.`}`;
 }
 
-function fallbackQuestions(locale, maturity) {
-  const ideaEs = [
-    ['¿Qué categoría concreta de producto o servicio vas a ofrecer primero y por qué empezar por esa?', 'Acotar la oferta evita probar demasiadas variables a la vez.', 'offer'],
-    ['¿Quién sería el primer comprador específico y qué le haría elegirte frente a las alternativas?', 'Define una persona y un motivo de compra comprobable.', 'customer'],
-    ['¿En qué situación concreta aparece la necesidad o el deseo de compra?', 'El momento de compra ayuda a diseñar oferta y mensaje.', 'trigger'],
-    ['¿De dónde obtendrás el primer inventario o los recursos para entregar diez ventas sin asumir un gran riesgo?', 'Comprueba que puedes empezar en pequeño.', 'supply'],
-    ['¿Cuál es tu coste máximo estimado por unidad y a qué precio realista podrías vender tras comisiones, envío y devoluciones?', 'Una estimación explícita permite detectar si el margen puede existir.', 'economics'],
-    ['¿Qué canal usarás para mostrar la oferta a los primeros veinte compradores potenciales?', 'La distribución debe ser posible antes de escalar.', 'distribution'],
-    ['¿Qué lote, anuncio u oferta mínima puedes publicar esta semana y qué resultado decidirá si continúas?', 'Convierte la idea en una prueba barata y falsable.', 'validation']
-  ];
-  const ideaEn = [
-    ['What exact product or service category will you offer first, and why start there?', 'A narrow offer avoids testing too many variables at once.', 'offer'],
-    ['Who is the first specific buyer, and why would they choose you over alternatives?', 'Define one reachable person and a testable buying reason.', 'customer'],
-    ['In what concrete situation does the need or desire to buy appear?', 'The buying moment shapes the offer and message.', 'trigger'],
-    ['Where will the first inventory or delivery resources come from for ten sales without taking a large risk?', 'Check that the idea can start small.', 'supply'],
-    ['What is the maximum estimated unit cost and a realistic selling price after fees, shipping and returns?', 'Explicit estimates reveal whether a margin can exist.', 'economics'],
-    ['Which channel will expose the offer to the first twenty potential buyers?', 'Distribution must be possible before scale.', 'distribution'],
-    ['What minimum batch, listing or offer can you publish this week, and what result determines whether to continue?', 'Turn the idea into a cheap falsifiable test.', 'validation']
-  ];
-  const base = locale === 'en' ? ideaEn : ideaEs;
-  return base.map(([question, reason, dimension]) => ({ question, reason, dimension, maturity }));
+function reportContract(locale, maturity, profile, mode) {
+  return `${languageRule(locale)}\n${maturityRule(maturity, locale)}\n${modeRule(mode, locale)}\n${PROFILE_GUIDANCE[profile][locale]}\n${locale === 'en' ? `
+Create a decision report calibrated to maturity, profile and mode. Score five dimensions from 0 to 20: offerClarity, customerProblemFit, economicPlausibility, distributionFeasibility and validationReadiness. Total must equal their sum.
+For early ideas, explicit and testable assumptions may earn partial points; absence of past sales is not a failure. Scores above 75 require real repeated or paid evidence.
+Distinguish: what is promising, what is unknown, what contradicts, what must not be built yet, and the most useful next actions.
+Create exactly seven profile-specific daily tasks that can be executed cheaply without building the full product. Every task needs an action and deliverable. End with a numerical continue/reframe/stop decision.
+Return JSON only with score, scoreBreakdown, verdict, executiveSummary, strengths, risks, criticalAssumptions, contradictions, doNotBuildYet, recommendations, experiment{name,hypothesis,target,metric,successThreshold,failureThreshold,decisionIfSuccess,decisionIfFailure,days[7],steps}, maturity, profile, analysisMode.` : `
+Crea un informe de decisión calibrado según madurez, perfil y modo. Puntúa de 0 a 20: offerClarity, customerProblemFit, economicPlausibility, distributionFeasibility y validationReadiness. El total debe ser su suma.
+En ideas tempranas, los supuestos explícitos y comprobables pueden obtener puntuación parcial; no tener ventas previas no es un fallo. Una puntuación superior a 75 exige evidencia real repetida o de pago.
+Distingue qué promete, qué se desconoce, qué se contradice, qué no debe construirse todavía y cuáles son las acciones siguientes más útiles.
+Crea exactamente siete tareas diarias específicas para el perfil, baratas y sin construir el producto completo. Cada tarea debe tener acción y entregable. Termina con una decisión numérica de continuar, reformular o parar.
+Devuelve solo JSON con score, scoreBreakdown, verdict, executiveSummary, strengths, risks, criticalAssumptions, contradictions, doNotBuildYet, recommendations, experiment{name,hypothesis,target,metric,successThreshold,failureThreshold,decisionIfSuccess,decisionIfFailure,days[7],steps}, maturity, profile, analysisMode.`}`;
 }
 
-function normalizeQuestions(data, locale, maturity) {
+const QUESTION_SETS = {
+  resale: {
+    es: [['¿Qué nicho concreto de artículos vas a probar primero y qué tres criterios usarás para seleccionarlos?','Acotar inventario mejora comparabilidad.','offer'],['¿Quién es el comprador más probable de ese nicho y qué valora al elegir una publicación?','Define un comprador observable.','customer'],['¿En qué rango de precio y estado se venden artículos comparables?','Usa el mercado visible como referencia.','trigger'],['¿Dónde conseguirás un lote inicial de 5 a 10 unidades sin arriesgar demasiado capital?','Valida acceso al inventario.','supply'],['¿Cuál es el coste máximo por unidad para conservar margen tras comisiones, envío y devoluciones?','Comprueba economía básica.','economics'],['¿Cuántos anuncios de calidad puedes preparar y publicar en una semana?','Aterriza capacidad y distribución.','distribution'],['¿Qué resultado del primer lote te hará comprar otro, cambiar de nicho o parar?','Define una decisión falsable.','validation']],
+    en: [['Which exact item niche will you test first, and what three selection criteria will you use?','Narrow inventory improves comparability.','offer'],['Who is the most likely buyer for that niche, and what do they value in a listing?','Define an observable buyer.','customer'],['At what price and condition range do comparable items sell?','Use visible market behavior as a reference.','trigger'],['Where can you source an initial batch of 5 to 10 units without risking much capital?','Validate inventory access.','supply'],['What is the maximum unit cost that preserves margin after fees, shipping and returns?','Check basic economics.','economics'],['How many quality listings can you prepare and publish in one week?','Ground capacity and distribution.','distribution'],['What first-batch result makes you buy again, change niche or stop?','Define a falsifiable decision.','validation']]
+  },
+  generic: {
+    es: [['¿Cuál es la primera versión concreta de la oferta que puedes explicar en una frase?','Evita una propuesta demasiado amplia.','offer'],['¿Quién es el primer cliente accesible y qué rasgo permite localizarlo?','Define un segmento alcanzable.','customer'],['¿Qué situación concreta activa la necesidad de comprar?','Aclara el momento de decisión.','trigger'],['¿Cómo entregarás las primeras diez ventas sin construir una infraestructura completa?','Diseña una entrega mínima.','supply'],['¿Qué costes y precio estimados harían viable una primera venta?','Explicita la economía básica.','economics'],['¿Qué canal permite mostrar la oferta a veinte personas adecuadas?','Comprueba acceso al mercado.','distribution'],['¿Qué microprueba puedes ejecutar esta semana y qué umbral decidirá el siguiente paso?','Convierte incertidumbre en aprendizaje.','validation']],
+    en: [['What is the first concrete version of the offer you can explain in one sentence?','Avoid an overly broad proposition.','offer'],['Who is the first reachable customer, and what trait makes them findable?','Define an accessible segment.','customer'],['What concrete situation triggers the need to buy?','Clarify the buying moment.','trigger'],['How will you deliver the first ten sales without building full infrastructure?','Design minimum delivery.','supply'],['Which estimated costs and price would make a first sale viable?','Make basic economics explicit.','economics'],['Which channel can expose the offer to twenty suitable people?','Check market access.','distribution'],['What micro-test can you run this week, and what threshold determines the next step?','Turn uncertainty into learning.','validation']]
+  }
+};
+
+function fallbackQuestions(locale, maturity, profile) {
+  const source = QUESTION_SETS[profile] || QUESTION_SETS.generic;
+  return source[locale].map(([question, reason, dimension]) => ({ question, reason, dimension, maturity, profile }));
+}
+
+function normalizeQuestions(data, locale, maturity, profile, mode) {
   const output = [];
   const seen = new Set();
   for (const item of array(data?.questions)) {
     const question = clean(item?.question || item?.text);
-    if (!question) continue;
+    if (!question || ((maturity === 'idea' || maturity === 'preparing') && HISTORICAL_QUESTION.test(question))) continue;
     const key = normalize(question);
     if (seen.has(key)) continue;
     seen.add(key);
-    output.push({ question, reason: clean(item?.reason || item?.dimension), dimension: clean(item?.dimension), maturity });
+    output.push({ question, reason: clean(item?.reason || item?.dimension), dimension: clean(item?.dimension), maturity, profile, analysisMode: mode });
   }
-  for (const item of fallbackQuestions(locale, maturity)) {
+  for (const item of fallbackQuestions(locale, maturity, profile)) {
     if (output.length >= 7) break;
-    if (!seen.has(normalize(item.question))) output.push(item);
+    if (!seen.has(normalize(item.question))) output.push({ ...item, analysisMode: mode });
   }
-  return { questions: output.slice(0, 7), maturity };
+  return { questions: output.slice(0, 7), maturity, profile, analysisMode: mode };
 }
 
 function numericBreakdown(report) {
   const raw = report?.scoreBreakdown || report?.scoring || {};
-  const aliases = [
-    ['offerClarity', 'problemEvidence'],
-    ['customerProblemFit', 'customerSpecificity'],
-    ['economicPlausibility', 'paymentEvidence'],
-    ['distributionFeasibility', 'distributionFeasibility'],
-    ['validationReadiness', 'deliveryEconomics']
-  ];
+  const aliases = [['offerClarity','problemEvidence'],['customerProblemFit','customerSpecificity'],['economicPlausibility','paymentEvidence'],['distributionFeasibility','distributionFeasibility'],['validationReadiness','deliveryEconomics']];
   const values = {};
   for (const [key, legacy] of aliases) values[key] = Math.max(0, Math.min(20, Number(raw[key] ?? raw[legacy]) || 0));
   return { values, total: Math.round(Object.values(values).reduce((sum, value) => sum + value, 0)) };
 }
-function verdict(score, locale) {
+function verdictFor(score, locale) {
   if (locale === 'en') return score < 35 ? 'DISCARD' : score < 55 ? 'REFRAME AND TEST' : score < 75 ? 'VALIDATE BEFORE BUILDING' : 'PROCEED WITH CAUTION';
   return score < 35 ? 'DESCARTAR' : score < 55 ? 'REFORMULAR Y PROBAR' : score < 75 ? 'VALIDAR ANTES DE CONSTRUIR' : 'AVANZAR CON CAUTELA';
 }
-function fallbackDays(locale, maturity) {
-  const es = [
-    ['Elige un único nicho inicial y define tres criterios de selección.', 'Ficha del nicho y criterios.'],
-    ['Localiza diez referencias comparables y registra precio, estado y tiempo publicado.', 'Tabla con diez comparables.'],
-    ['Calcula coste, comisiones, envío, devoluciones y margen de tres unidades ejemplo.', 'Cálculo de margen por unidad.'],
-    ['Consigue o identifica un lote mínimo de tres a cinco unidades sin comprometer mucho capital.', 'Lista o fotografías del lote de prueba.'],
-    ['Prepara fotografías, títulos, descripción, precio y condiciones de la oferta.', 'Anuncios listos para publicar.'],
-    ['Publica o presenta la microoferta y registra visitas, favoritos, preguntas y ofertas.', 'Registro de señales reales.'],
-    ['Compara los resultados con el umbral y decide continuar, cambiar nicho/precio o parar.', 'Decisión escrita con cifras.']
-  ];
-  const en = [
-    ['Choose one initial niche and define three selection criteria.', 'Niche sheet and criteria.'],
-    ['Find ten comparable listings and record price, condition and time listed.', 'Table with ten comparables.'],
-    ['Calculate cost, fees, shipping, returns and margin for three example units.', 'Unit-margin calculation.'],
-    ['Source or identify a minimum batch of three to five units without risking much capital.', 'Test-batch list or photos.'],
-    ['Prepare photos, titles, description, price and offer terms.', 'Listings ready to publish.'],
-    ['Publish or present the micro-offer and record views, saves, questions and offers.', 'Log of real signals.'],
-    ['Compare results with the threshold and decide to continue, change niche/price or stop.', 'Written decision supported by counts.']
-  ];
-  return (locale === 'en' ? en : es).map(([action, deliverable], index) => ({ day: index + 1, action, deliverable, maturity }));
+
+function fallbackDays(locale, profile) {
+  const resaleEs = [['Define el nicho y tres criterios de compra.','Ficha de selección.'],['Registra diez anuncios comparables con precio y estado.','Tabla de comparables.'],['Calcula el margen de tres unidades ejemplo.','Hoja de margen.'],['Consigue un lote máximo de cinco unidades dentro de un presupuesto cerrado.','Inventario inicial documentado.'],['Fotografía, describe y publica el lote con un estándar común.','Cinco anuncios publicados.'],['Registra visitas, favoritos, preguntas y ofertas durante 48 horas.','Registro de señales.'],['Compara el resultado con los umbrales y decide comprar, cambiar nicho o parar.','Decisión escrita con cifras.']];
+  const genericEs = [['Define una hipótesis falsable sobre el supuesto principal.','Hipótesis en una frase.'],['Selecciona veinte personas que encajen con el cliente inicial.','Lista de prospectos.'],['Crea una oferta manual de una página con precio.','Oferta lista para mostrar.'],['Muestra la oferta a diez personas y registra respuestas.','Diez contactos registrados.'],['Habla con cinco personas sobre su conducta actual.','Cinco conversaciones documentadas.'],['Solicita una acción real: reserva, pago, cita o compromiso.','Decisiones reales registradas.'],['Compara resultados con los umbrales y decide continuar, reformular o parar.','Decisión escrita con cifras.']];
+  const es = profile === 'resale' ? resaleEs : genericEs;
+  const en = es.map(([action, deliverable]) => [action, deliverable]);
+  if (locale === 'en') {
+    const resaleEn = [['Define the niche and three buying criteria.','Selection brief.'],['Record ten comparable listings with price and condition.','Comparable-listing table.'],['Calculate margin for three example units.','Unit-margin sheet.'],['Source a maximum five-unit batch within a fixed budget.','Documented initial inventory.'],['Photograph, describe and publish the batch consistently.','Five live listings.'],['Track views, saves, questions and offers for 48 hours.','Signal log.'],['Compare results with thresholds and decide to restock, change niche or stop.','Written decision with counts.']];
+    const genericEn = [['Define a falsifiable hypothesis for the main assumption.','One-sentence hypothesis.'],['Select twenty people matching the initial customer.','Prospect list.'],['Create a one-page manual offer with a price.','Offer ready to show.'],['Show the offer to ten people and log responses.','Ten recorded contacts.'],['Speak with five people about current behavior.','Five documented conversations.'],['Request a real action: booking, payment, meeting or commitment.','Recorded real decisions.'],['Compare results with thresholds and decide to continue, reframe or stop.','Written decision with counts.']];
+    return (profile === 'resale' ? resaleEn : genericEn).map(([action, deliverable], index) => ({ day: index + 1, action, deliverable }));
+  }
+  return es.map(([action, deliverable], index) => ({ day: index + 1, action, deliverable }));
 }
-function normalizeDays(experiment, locale, maturity) {
-  const days = array(experiment?.days).map((item, index) => ({
-    day: Number(item?.day) || index + 1,
-    action: clean(item?.action || item?.task || item),
-    deliverable: clean(item?.deliverable || item?.output)
-  })).filter(item => item.action);
-  const fallback = fallbackDays(locale, maturity);
-  while (days.length < 7) days.push(fallback[days.length]);
-  return days.slice(0, 7).map((item, index) => ({ ...item, day: index + 1 }));
+
+function normalizeDays(experiment, locale, profile) {
+  const days = array(experiment?.days).map((item, index) => ({ day: Number(item?.day) || index + 1, action: clean(item?.action || item?.task || item), deliverable: clean(item?.deliverable || item?.output) })).filter(item => item.action);
+  const fallback = fallbackDays(locale, profile);
+  for (let i = days.length; i < 7; i += 1) days.push(fallback[i]);
+  return days.slice(0, 7).map((item, index) => ({ ...item, day: index + 1, deliverable: item.deliverable || fallback[index].deliverable }));
 }
-function normalizeReport(data, locale, maturity) {
+
+function normalizeReport(data, locale, maturity, profile, mode) {
   const breakdown = numericBreakdown(data);
-  let score = breakdown.total || Math.max(0, Math.min(100, Math.round(Number(data?.score) || 0)));
+  const hasBreakdown = Object.values(breakdown.values).some(value => value > 0);
+  const rawScore = Number(data?.score);
+  const score = hasBreakdown ? breakdown.total : Number.isFinite(rawScore) ? Math.max(0, Math.min(100, Math.round(rawScore))) : 0;
   const experiment = data?.experiment || data?.validationExperiment || {};
-  const days = normalizeDays(experiment, locale, maturity);
+  const days = normalizeDays(experiment, locale, profile);
+  const steps = days.map(item => locale === 'en' ? `Day ${item.day}: ${item.action} Deliverable: ${item.deliverable}` : `Día ${item.day}: ${item.action} Entregable: ${item.deliverable}`);
   return {
-    ...data,
-    maturity,
-    score,
-    scoreBreakdown: breakdown.values,
-    verdict: verdict(score, locale),
-    executiveSummary: clean(data?.executiveSummary || data?.summary) || (locale === 'en' ? 'The idea is early; the useful decision is which assumption to test first.' : 'La idea está en una fase temprana; la decisión útil es qué supuesto comprobar primero.'),
-    strengths: array(data?.strengths),
-    risks: array(data?.risks),
-    criticalAssumptions: array(data?.criticalAssumptions || data?.assumptions),
-    contradictions: array(data?.contradictions),
-    doNotBuildYet: array(data?.doNotBuildYet),
-    recommendations: array(data?.recommendations),
-    experiment: {
-      ...experiment,
-      name: clean(experiment?.name) || (locale === 'en' ? 'Seven-day first-market test' : 'Primera prueba de mercado en siete días'),
-      hypothesis: clean(experiment?.hypothesis),
-      target: clean(experiment?.target),
-      metric: clean(experiment?.metric),
-      successThreshold: clean(experiment?.successThreshold),
-      failureThreshold: clean(experiment?.failureThreshold),
-      decisionIfSuccess: clean(experiment?.decisionIfSuccess),
-      decisionIfFailure: clean(experiment?.decisionIfFailure),
-      days,
-      steps: days.map(item => locale === 'en' ? `Day ${item.day}: ${item.action} Deliverable: ${item.deliverable}` : `Día ${item.day}: ${item.action} Entregable: ${item.deliverable}`)
-    }
+    ...data, score, scoreBreakdown: breakdown.values, verdict: verdictFor(score, locale), maturity, profile, analysisMode: mode,
+    executiveSummary: clean(data?.executiveSummary || data?.summary) || (locale === 'en' ? 'Atlas has identified the decisions and evidence needed before investing further.' : 'Atlas ha identificado las decisiones y la evidencia necesarias antes de invertir más.'),
+    strengths: array(data?.strengths), risks: array(data?.risks), criticalAssumptions: array(data?.criticalAssumptions || data?.assumptions), contradictions: array(data?.contradictions), doNotBuildYet: array(data?.doNotBuildYet), recommendations: array(data?.recommendations),
+    experiment: { ...experiment, name: clean(experiment?.name) || (locale === 'en' ? '7-day evidence test' : 'Prueba de evidencia de 7 días'), hypothesis: clean(experiment?.hypothesis), target: clean(experiment?.target), metric: clean(experiment?.metric), successThreshold: clean(experiment?.successThreshold), failureThreshold: clean(experiment?.failureThreshold), decisionIfSuccess: clean(experiment?.decisionIfSuccess), decisionIfFailure: clean(experiment?.decisionIfFailure), days, steps }
   };
 }
 
-async function upstream(body) {
+async function callUpstream(body) {
   const response = await fetch(UPSTREAM, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const text = await response.text();
   let data;
@@ -246,19 +244,26 @@ export default async function handler(req, res) {
     if (!body.mode) return res.status(400).json({ error: locale === 'en' ? 'Invalid mode' : 'Modo inválido' });
 
     const maturity = inferMaturity(body);
-    const contract = body.mode === 'questions' ? questionContract(locale, maturity) : reportContract(locale, maturity);
+    const profile = inferProfile(body);
+    const analysisMode = inferMode(body, maturity);
+    const contract = body.mode === 'questions' ? questionContract(locale, maturity, profile, analysisMode) : reportContract(locale, maturity, profile, analysisMode);
     body.language = locale;
     body.locale = locale;
     body.outputLanguage = locale === 'en' ? 'English' : 'Spanish';
-    body.atlasVersion = '3.3-stage-aware';
+    body.atlasVersion = '3.3-calibrated';
     body.maturity = maturity;
+    body.businessProfile = profile;
+    body.analysisMode = analysisMode;
     body.idea = `${clean(body.idea)}\n\n${contract}`;
 
-    const result = await upstream(body);
-    if (result.status >= 400) return res.status(result.status).json(result.data);
-    return res.status(200).json(body.mode === 'questions' ? normalizeQuestions(result.data, locale, maturity) : normalizeReport(result.data, locale, maturity));
+    const upstream = await callUpstream(body);
+    if (upstream.status >= 400) return res.status(upstream.status).json(upstream.data);
+    const result = body.mode === 'questions'
+      ? normalizeQuestions(upstream.data, locale, maturity, profile, analysisMode)
+      : normalizeReport(upstream.data, locale, maturity, profile, analysisMode);
+    return res.status(200).json(result);
   } catch (error) {
-    const locale = localeOf(req.body || {});
-    return res.status(502).json({ error: error?.message === 'invalid_upstream_json' ? (locale === 'en' ? 'Invalid response from analysis engine' : 'Respuesta inválida del motor de análisis') : (locale === 'en' ? 'Atlas could not complete the analysis. Please try again.' : 'Atlas no pudo completar el análisis. Inténtalo de nuevo.') });
+    const english = localeOf(req.body || {}) === 'en';
+    return res.status(502).json({ error: error?.message === 'invalid_upstream_json' ? (english ? 'Invalid response from analysis engine' : 'Respuesta inválida del motor de análisis') : (english ? 'Atlas could not complete the analysis. Please try again.' : 'Atlas no pudo completar el análisis. Inténtalo de nuevo.') });
   }
 }
