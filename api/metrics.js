@@ -1,4 +1,4 @@
-import { list, get } from '@vercel/blob';
+import { list } from '@vercel/blob';
 
 function authorized(req) {
   const secret = process.env.DASHBOARD_SECRET;
@@ -6,19 +6,31 @@ function authorized(req) {
   return req.headers.authorization === `Bearer ${secret}`;
 }
 
+async function readPrivateBlob(blob) {
+  const url = blob.downloadUrl || blob.url;
+  if (!url) return null;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}` }
+  });
+  if (!response.ok) throw new Error(`Blob read failed (${response.status})`);
+  return response.text();
+}
+
 async function readEvents(limit = 5000) {
   const events = [];
   let cursor;
   do {
-    const page = await list({ prefix: 'analytics/events/', cursor, limit: Math.min(1000, limit - events.length) });
+    const remaining = limit - events.length;
+    if (remaining <= 0) break;
+    const page = await list({ prefix: 'analytics/events/', cursor, limit: Math.min(1000, remaining) });
     for (const blob of page.blobs) {
       if (events.length >= limit) break;
       try {
-        const response = await get(blob.pathname, { access: 'private' });
-        if (!response?.stream) continue;
-        const text = await new Response(response.stream).text();
-        events.push(JSON.parse(text));
-      } catch {}
+        const text = await readPrivateBlob(blob);
+        if (text) events.push(JSON.parse(text));
+      } catch (error) {
+        console.warn('Atlas analytics blob skipped', blob.pathname, error.message);
+      }
     }
     cursor = page.hasMore ? page.cursor : undefined;
   } while (cursor && events.length < limit);
@@ -52,11 +64,11 @@ function aggregate(events) {
   const completed = eventCounts.report_generated || 0;
   const durations = events.filter(e => e.name === 'report_generated').map(e => Number(e.data?.durationMs)).filter(Number.isFinite);
   const questionAbandonment = {};
-  for (const list of sessions.values()) {
-    const startedEvent = list.find(e => e.name === 'validator_started');
-    const completedEvent = list.find(e => e.name === 'report_generated');
+  for (const sessionEvents of sessions.values()) {
+    const startedEvent = sessionEvents.find(e => e.name === 'validator_started');
+    const completedEvent = sessionEvents.find(e => e.name === 'report_generated');
     if (!startedEvent || completedEvent) continue;
-    const lastQuestion = [...list].reverse().find(e => e.name === 'question_viewed' || e.name === 'question_answered');
+    const lastQuestion = [...sessionEvents].reverse().find(e => e.name === 'question_viewed' || e.name === 'question_answered');
     const step = lastQuestion?.data?.step || 0;
     questionAbandonment[step] = (questionAbandonment[step] || 0) + 1;
   }
@@ -114,9 +126,15 @@ function aggregate(events) {
 }
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   if (!authorized(req)) return res.status(401).json({ error: 'Unauthorized' });
   if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(503).json({ error: 'Analytics storage is not configured' });
-  const events = await readEvents(5000);
-  return res.status(200).json(aggregate(events));
+  try {
+    const events = await readEvents(5000);
+    return res.status(200).json(aggregate(events));
+  } catch (error) {
+    console.error('Atlas metrics error', error);
+    return res.status(500).json({ error: 'Unable to load analytics metrics', detail: error.message });
+  }
 }
