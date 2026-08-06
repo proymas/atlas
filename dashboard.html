@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Atlas Dashboard</title>
+  <link rel="stylesheet" href="/assets/tokens.css" />
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#050a14;color:#eef6ff;font-family:Inter,ui-sans-serif,system-ui,sans-serif}.wrap{width:min(1180px,calc(100% - 32px));margin:auto;padding:38px 0 70px}.top{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:28px}.top h1{margin:0;font-size:clamp(28px,4vw,46px)}.top p{margin:7px 0 0;color:#91a6be}.button,input{border:1px solid rgba(132,180,240,.25);border-radius:12px;background:#0a1728;color:#eef6ff;padding:11px 14px}.button{cursor:pointer;font-weight:700}.auth{display:flex;gap:8px}.auth input{min-width:260px}.status{color:#91a6be;margin:12px 0 22px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card{padding:20px;border:1px solid rgba(132,180,240,.18);border-radius:18px;background:rgba(8,21,37,.82)}.card span{display:block;color:#91a6be;font-size:13px}.card strong{display:block;margin-top:7px;font-size:30px}.section{margin-top:22px}.section h2{font-size:19px;margin:0 0 12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.bars{display:grid;gap:10px}.bar-row{display:grid;grid-template-columns:minmax(110px,1fr) 3fr 45px;gap:10px;align-items:center;font-size:13px}.track{height:9px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,#5fd7ff,#647cff);border-radius:99px}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{text-align:left;padding:10px;border-bottom:1px solid rgba(132,180,240,.12);vertical-align:top}.table th{color:#91a6be}.empty{color:#91a6be;padding:24px 0}.hidden{display:none}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}@media(max-width:560px){.grid{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}.auth{width:100%;flex-direction:column}.auth input{min-width:0;width:100%}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="top"><div><h1>Atlas Dashboard</h1><p>Beta 3.4 · Analítica propia y respetuosa con la privacidad</p></div><div class="auth"><input id="secret" type="password" placeholder="Clave del dashboard" autocomplete="current-password"><button id="load" class="button">Cargar métricas</button></div></header>
+    <p id="status" class="status">Introduce la clave privada configurada en Vercel.</p>
+    <section id="dashboard" class="hidden">
+      <div id="cards" class="grid"></div>
+      <div class="two section"><article class="card"><h2>Embudo</h2><div id="funnel" class="bars"></div></article><article class="card"><h2>Abandono por pregunta</h2><div id="abandonment" class="bars"></div></article></div>
+      <div class="two section"><article class="card"><h2>Perfiles de negocio</h2><div id="profiles" class="bars"></div></article><article class="card"><h2>Madurez y modo</h2><div id="maturity" class="bars"></div></article></div>
+      <div class="two section"><article class="card"><h2>Veredictos</h2><div id="verdicts" class="bars"></div></article><article class="card"><h2>Idiomas</h2><div id="locales" class="bars"></div></article></div>
+      <article class="card section"><h2>Eventos recientes</h2><div style="overflow:auto"><table class="table"><thead><tr><th>Fecha</th><th>Evento</th><th>Idioma</th><th>País</th><th>Datos</th></tr></thead><tbody id="events"></tbody></table></div></article>
+    </section>
+  </main>
+  <script type="module">
+    const $=id=>document.getElementById(id);
+    const fmtMs=value=>value?`${Math.round(value/1000)} s`:'—';
+    const cards=[['landingViews','Visitas'],['analysesStarted','Análisis iniciados'],['reportsGenerated','Informes'],['completionRate','Finalización','%'],['pdfDownloads','PDF'],['shares','Compartidos'],['feedback','Feedback'],['proWaitlist','Atlas Pro'],['errors','Errores'],['blocked','Bloqueados']];
+    function bars(id,data={}){const entries=Object.entries(data);const max=Math.max(1,...entries.map(([,v])=>Number(v)||0));$(id).innerHTML=entries.length?entries.map(([key,value])=>`<div class="bar-row"><span>${key}</span><div class="track"><div class="fill" style="width:${(Number(value)||0)/max*100}%"></div></div><strong>${value}</strong></div>`).join(''):'<p class="empty">Sin datos todavía.</p>';}
+    function render(data){$('cards').innerHTML=cards.map(([key,label,suffix=''])=>`<article class="card"><span>${label}</span><strong>${data.totals[key]??0}${suffix}</strong></article>`).join('')+`<article class="card"><span>Tiempo medio</span><strong>${fmtMs(data.timing.averageMs)}</strong></article><article class="card"><span>Valoración media</span><strong>${data.quality.averageRating||'—'}</strong></article>`;bars('funnel',data.funnel);bars('abandonment',data.abandonmentByQuestion);bars('profiles',data.quality.profiles);bars('maturity',{...data.quality.maturity,...Object.fromEntries(Object.entries(data.quality.modes).map(([k,v])=>[`modo: ${k}`,v]))});bars('verdicts',data.quality.verdicts);bars('locales',data.quality.locales);$('events').innerHTML=data.recentEvents.map(e=>`<tr><td>${new Date(e.createdAt).toLocaleString()}</td><td>${e.name}</td><td>${e.locale}</td><td>${e.country}</td><td><code>${JSON.stringify(e.data)}</code></td></tr>`).join('');$('dashboard').classList.remove('hidden');}
+    async function load(){const secret=$('secret').value.trim();if(!secret)return;$('status').textContent='Cargando…';try{const response=await fetch('/api/metrics',{headers:{Authorization:`Bearer ${secret}`}});const data=await response.json();if(!response.ok)throw new Error(data.error||'No se pudieron cargar las métricas');sessionStorage.setItem('atlas_dashboard_secret',secret);render(data);$('status').textContent=`Actualizado: ${new Date(data.generatedAt).toLocaleString()} · ${data.totals.events} eventos persistidos.`;}catch(error){$('status').textContent=error.message;$('dashboard').classList.add('hidden');}}
+    $('load').addEventListener('click',load);$('secret').addEventListener('keydown',e=>{if(e.key==='Enter')load();});const saved=sessionStorage.getItem('atlas_dashboard_secret');if(saved){$('secret').value=saved;load();}
+  </script>
+</body>
+</html>
