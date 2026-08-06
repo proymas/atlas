@@ -4,6 +4,8 @@ import { getLocale } from './i18n.js';
 
 const SESSION_KEY = 'atlas_session_id';
 const START_KEY = 'atlas_analysis_started_at';
+const ONCE_PER_SESSION = new Set(['landing_view', 'free_analysis_available']);
+const trackedOnce = new Set();
 
 function makeId() {
   if (globalThis.crypto?.randomUUID) return crypto.randomUUID().replaceAll('-', '');
@@ -29,6 +31,10 @@ export function analysisDurationMs() {
 }
 
 export function track(name, data = {}) {
+  if (ONCE_PER_SESSION.has(name)) {
+    if (trackedOnce.has(name)) return;
+    trackedOnce.add(name);
+  }
   post('/api/event', {
     name,
     data,
