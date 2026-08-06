@@ -1,0 +1,47 @@
+@page{size:A4;margin:14mm 13mm 16mm}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{width:auto!important;min-height:0!important;background:#fff!important;color:#132238!important;font-family:Inter,Arial,sans-serif!important}
+  body{margin:0!important}
+  .site-header,.hero,.trust-strip,#como-funciona,#principios,#ejemplo,.validator-intro,.progress-row,.progress,#start-view,#question-view,#loading-view,.report-actions,.final-cta,.footer,.free-plan-status,.free-limit-card,.pro-upsell,.engagement-section,.feedback-section,[data-engagement],#pro-upsell{display:none!important}
+  main,.validator-section,.validator-layout,.container,.app-card,#report-view{display:block!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;min-height:0!important}
+  .validator-section{position:static!important}
+  #report-view{color:#132238!important}
+  #report-view::before{content:"ATLAS  •  INFORME DE VALIDACIÓN";display:block;margin:0 0 9mm;padding:8mm 9mm;border-radius:5mm;background:linear-gradient(120deg,#081523,#132c4d);color:#fff;font-size:11pt;font-weight:900;letter-spacing:.13em}
+  #report-view::after{content:"Atlas · Antes de construir";display:block;margin-top:8mm;padding-top:4mm;border-top:.3mm solid #dce5ef;color:#708096;font-size:8.5pt;text-align:right}
+  #report-view>.eyebrow{margin:0 0 3mm!important;color:#1876a8!important;font-size:8.5pt!important;font-weight:900!important;letter-spacing:.16em!important}
+  .report-header{display:grid!important;grid-template-columns:38mm 1fr!important;gap:7mm!important;align-items:center!important;margin:0 0 7mm!important;padding:7mm!important;border:0!important;border-radius:5mm!important;background:#f3f7fb!important;break-inside:avoid!important}
+  .report-header>div:first-child{width:34mm!important;height:34mm!important;border-radius:50%!important;background:#fff!important;border:2.2mm solid #55bfe9!important;box-shadow:inset 0 0 0 1.2mm #7588ee!important;color:#0b1b31!important;font-size:25pt!important}
+  .report-header small{color:#667891!important;font-size:8pt!important}
+  .report-header h3{margin:0 0 2mm!important;color:#0a1b31!important;font-size:25pt!important;line-height:1.02!important;letter-spacing:-.03em!important}
+  .report-header p{margin:0!important;color:#455872!important;font-size:10.2pt!important;line-height:1.55!important}
+  .report-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:4mm!important;margin:0!important}
+  .report-grid article,.atlas-33-card{margin:0!important;padding:5mm!important;border:.35mm solid #d6e1ec!important;border-radius:4mm!important;background:#fff!important;box-shadow:none!important;break-inside:avoid!important;color:#132238!important}
+  .report-grid article h4,.atlas-33-card h4{margin:0 0 3mm!important;color:#0b2038!important;font-size:11pt!important}
+  .report-grid ul,.report-grid ol,.atlas-33-card ul{margin:0!important;padding-left:5mm!important;color:#42556f!important;font-size:9.3pt!important;line-height:1.48!important}
+  .report-grid li,.atlas-33-card li{margin-bottom:1.5mm!important}
+  .experiment{grid-column:1/-1!important;margin-top:2mm!important;padding:6mm!important;border:.45mm solid #55bfe9!important;background:#f6fbff!important;page-break-before:always!important}
+  .experiment h4{font-size:16pt!important;margin-bottom:3mm!important}
+  .experiment-meta{display:grid!important;grid-template-columns:1fr 1fr!important;gap:3mm!important;margin:0 0 5mm!important}
+  .experiment-meta div{padding:3.5mm!important;border:.3mm solid #dce8f2!important;border-radius:3mm!important;background:#fff!important;break-inside:avoid!important}
+  .experiment-meta strong{display:block!important;margin-bottom:1mm!important;color:#1876a8!important;font-size:7.4pt!important;letter-spacing:.08em!important}
+  .experiment-meta span{color:#40546f!important;font-size:8.7pt!important;line-height:1.35!important}
+  .experiment-progress-wrap{margin:0 0 4mm!important}
+  .experiment-progress-copy{color:#61748d!important;font-size:8.5pt!important}
+  .experiment-progress-track{height:2mm!important;background:#dce8f2!important}
+  .experiment-progress-fill{background:#55bfe9!important}
+  .experiment-task{padding:3.2mm 0!important;border-top:.3mm solid #dce8f2!important;break-inside:avoid!important}
+  .experiment-task label{display:grid!important;grid-template-columns:6mm 1fr!important;gap:2.5mm!important}
+  .experiment-task input{appearance:none!important;width:4mm!important;height:4mm!important;margin:.5mm 0 0!important;border:.45mm solid #7b8ba0!important;border-radius:.7mm!important;background:#fff!important}
+  .experiment-day{color:#0b2038!important;font-size:10pt!important;font-weight:800!important}
+  .experiment-action{color:#3c506b!important;font-size:9pt!important;line-height:1.4!important}
+  .experiment-deliverable{color:#61748d!important;font-size:8.3pt!important}
+  .experiment-deliverable strong{color:#1876a8!important}
+  .atlas-33-insights{display:grid!important;grid-template-columns:1fr 1fr!important;gap:4mm!important;margin:6mm 0 0!important;page-break-before:auto!important}
+  .atlas-33-insights>.atlas-33-card:first-child{grid-column:1/-1!important;background:#f3f7fb!important}
+  .score-breakdown{display:grid!important;grid-template-columns:1fr 1fr!important;gap:2.5mm 8mm!important}
+  .score-row{padding-bottom:1.5mm!important;border-bottom:.3mm solid #dce5ef!important}
+  .score-row span{color:#435770!important;font-size:8.8pt!important}
+  .score-row strong{color:#0b2038!important;font-size:9pt!important}
+  a{color:inherit!important;text-decoration:none!important}
+}
