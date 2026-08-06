@@ -2,7 +2,8 @@ const STORAGE_KEY='atlas-pro-workspace-v1';
 const ACTIVE_KEY='atlas-pro-active-project';
 const SCHEMA_VERSION=2;
 const MAX_VERSIONS=30;
-let timer=null;
+let initialized=false;
+let idleSyncHandle=null;
 
 function id(){return globalThis.crypto?.randomUUID?.()||`atlas-version-${Date.now()}-${Math.random().toString(16).slice(2)}`;}
 function clone(value){try{return JSON.parse(JSON.stringify(value));}catch{return value;}}
@@ -15,24 +16,7 @@ function fingerprint(project){
 function createSnapshot(project,source='analysis'){
   const at=project.updatedAt||new Date().toISOString();
   const evidence=Array.isArray(project.evidence)?project.evidence:[];
-  return {
-    id:id(),
-    number:(Array.isArray(project.versions)?project.versions.length:0)+1,
-    createdAt:at,
-    source,
-    fingerprint:fingerprint(project),
-    idea:String(project.idea||''),
-    answers:clone(Array.isArray(project.answers)?project.answers:[]),
-    report:clone(project.report||{}),
-    maturity:project.maturity||'unknown',
-    profile:project.profile||'unknown',
-    mode:project.mode||'unknown',
-    evidenceCutoffAt:at,
-    evidenceIds:evidence.map(item=>item?.id).filter(Boolean),
-    evidenceSnapshot:clone(evidence),
-    score:Number(project.report?.score)||0,
-    verdict:String(project.report?.verdict||''),
-  };
+  return {id:id(),number:(Array.isArray(project.versions)?project.versions.length:0)+1,createdAt:at,source,fingerprint:fingerprint(project),idea:String(project.idea||''),answers:clone(Array.isArray(project.answers)?project.answers:[]),report:clone(project.report||{}),maturity:project.maturity||'unknown',profile:project.profile||'unknown',mode:project.mode||'unknown',evidenceCutoffAt:at,evidenceIds:evidence.map(item=>item?.id).filter(Boolean),evidenceSnapshot:clone(evidence),score:Number(project.report?.score)||0,verdict:String(project.report?.verdict||'')};
 }
 function normalizeProject(project){
   let changed=false;
@@ -54,14 +38,21 @@ export function syncProjectMemory(){
   if(changed){write(projects);window.dispatchEvent(new CustomEvent('atlas:memory-synced',{detail:{projects:projects.length}}));}
   return projects;
 }
+function scheduleIdleSync(){
+  if(idleSyncHandle!==null)return;
+  const run=()=>{idleSyncHandle=null;syncProjectMemory();};
+  if('requestIdleCallback' in window)idleSyncHandle=window.requestIdleCallback(run,{timeout:2500});
+  else idleSyncHandle=window.setTimeout(run,1200);
+}
 export function getProjectMemory(projectId){const projects=syncProjectMemory();return projects.find(project=>project.id===projectId)||null;}
 export function getActiveProjectMemory(){const activeId=localStorage.getItem(ACTIVE_KEY);return activeId?getProjectMemory(activeId):null;}
 export function getProjectVersions(projectId){return getProjectMemory(projectId)?.versions||[];}
 export function initProjectMemory(){
-  if(timer)return;
-  syncProjectMemory();
-  timer=setInterval(syncProjectMemory,900);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncProjectMemory();});
+  if(initialized)return;
+  initialized=true;
+  scheduleIdleSync();
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleIdleSync();});
+  window.addEventListener('atlas:project-changed',scheduleIdleSync);
   window.addEventListener('beforeunload',syncProjectMemory);
   window.AtlasProjectMemory={sync:syncProjectMemory,getProject:getProjectMemory,getActive:getActiveProjectMemory,getVersions:getProjectVersions,schemaVersion:SCHEMA_VERSION};
 }
