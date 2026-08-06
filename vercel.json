@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/analyze-safe.js": {
+    "api/analyze-safe-v3.js": {
       "maxDuration": 60
     },
     "api/analyze.js": {
@@ -11,7 +11,7 @@
   "routes": [
     {
       "src": "/api/analyze",
-      "dest": "/api/analyze-safe.js"
+      "dest": "/api/analyze-safe-v3.js"
     },
     {
       "src": "/api/feedback",
@@ -20,6 +20,10 @@
     {
       "src": "/api/event",
       "dest": "/api/event.js"
+    },
+    {
+      "src": "/api/waitlist",
+      "dest": "/api/waitlist.js"
     },
     {
       "handle": "filesystem"
