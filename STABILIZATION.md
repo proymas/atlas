@@ -1,0 +1,1 @@
+Production stabilization baseline restored after reanalysis regressions. Reanalysis work is preserved in branch backup/reanalysis-pre-stabilization.
