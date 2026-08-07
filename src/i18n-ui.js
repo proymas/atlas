@@ -3,6 +3,7 @@ import './version-compare.js';
 import './copilot.js';
 import './experiment-lab.js';
 import './auth.js';
+import './auth-cloud-isolation.js';
 import './password-recovery.js';
 import './delete-account.js';
 
