@@ -1,11 +1,12 @@
-const BRIDGE_URL = 'https://ntrnchrtnfjyrsagxxbo.supabase.co/functions/v1/atlas-projects-bridge';
+const PROJECTS_BRIDGE_URL = 'https://ntrnchrtnfjyrsagxxbo.supabase.co/functions/v1/atlas-projects-bridge';
+const ENTITLEMENTS_BRIDGE_URL = 'https://ntrnchrtnfjyrsagxxbo.supabase.co/functions/v1/atlas-entitlements';
 
 function bearer(req) {
   const value = String(req.headers.authorization || '');
   return value.toLowerCase().startsWith('bearer ') ? value : '';
 }
 
-async function bridge(req, path = '', options = {}) {
+async function bridge(req, baseUrl, path = '', options = {}) {
   const authorization = bearer(req);
   if (!authorization) {
     const error = new Error('unauthorized');
@@ -13,7 +14,7 @@ async function bridge(req, path = '', options = {}) {
     throw error;
   }
 
-  const response = await fetch(`${BRIDGE_URL}${path}`, {
+  const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
       'content-type': 'application/json',
@@ -39,8 +40,13 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   try {
+    if (req.method === 'GET' && String(req.query?.mode || '') === 'entitlements') {
+      const data = await bridge(req, ENTITLEMENTS_BRIDGE_URL, '', { method: 'GET' });
+      return res.status(200).json(data || { plan: 'free', status: 'active', usage: {} });
+    }
+
     if (req.method === 'GET') {
-      const data = await bridge(req, '', { method: 'GET' });
+      const data = await bridge(req, PROJECTS_BRIDGE_URL, '', { method: 'GET' });
       const projects = Array.isArray(data?.projects) ? data.projects : [];
       return res.status(200).json(projects.map((project) => ({ project_data: project })));
     }
@@ -48,7 +54,7 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const project = req.body?.project;
       if (!project?.id) return res.status(400).json({ error: 'invalid_project' });
-      const data = await bridge(req, '', {
+      const data = await bridge(req, PROJECTS_BRIDGE_URL, '', {
         method: 'POST',
         body: JSON.stringify({ project }),
       });
@@ -58,7 +64,7 @@ export default async function handler(req, res) {
     if (req.method === 'DELETE') {
       const clientId = String(req.body?.clientId || '').trim();
       if (!clientId) return res.status(400).json({ error: 'invalid_project_id' });
-      await bridge(req, `?client_id=${encodeURIComponent(clientId)}`, { method: 'DELETE' });
+      await bridge(req, PROJECTS_BRIDGE_URL, `?client_id=${encodeURIComponent(clientId)}`, { method: 'DELETE' });
       return res.status(204).end();
     }
 
