@@ -3,6 +3,7 @@ import './version-compare.js';
 import './copilot.js';
 import './experiment-lab.js';
 import './auth.js';
+import './password-recovery.js';
 import './delete-account.js';
 
 const style = document.createElement('style');
