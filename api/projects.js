@@ -31,6 +31,7 @@ async function bridge(req, baseUrl, path = '', options = {}) {
   if (!response.ok) {
     const error = new Error(data?.error || `bridge_${response.status}`);
     error.status = response.status;
+    error.data = data;
     throw error;
   }
   return data;
@@ -43,6 +44,14 @@ export default async function handler(req, res) {
     if (req.method === 'GET' && String(req.query?.mode || '') === 'entitlements') {
       const data = await bridge(req, ENTITLEMENTS_BRIDGE_URL, '', { method: 'GET' });
       return res.status(200).json(data || { plan: 'free', status: 'active', usage: {} });
+    }
+
+    if (req.method === 'POST' && String(req.query?.mode || '') === 'consume-copilot') {
+      const data = await bridge(req, ENTITLEMENTS_BRIDGE_URL, '', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'consume', feature: 'copilot' }),
+      });
+      return res.status(200).json(data || { allowed: true });
     }
 
     if (req.method === 'GET') {
@@ -72,6 +81,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'method_not_allowed' });
   } catch (error) {
     const status = Number(error?.status) || 502;
+    if (status === 429) {
+      return res.status(429).json({
+        error: 'copilot_limit',
+        used: error?.data?.used ?? 8,
+        limit: error?.data?.limit ?? 8,
+        period: error?.data?.period || null,
+      });
+    }
     console.error('atlas_projects_api_failed', error);
     return res.status(status === 401 ? 401 : 502).json({
       error: status === 401 ? 'unauthorized' : 'cloud_request_failed',
