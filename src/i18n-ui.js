@@ -4,6 +4,7 @@ import './copilot.js';
 import './experiment-lab.js';
 import './auth.js';
 import './entitlements.js';
+import './plan-gating.js';
 import './auth-cloud-isolation.js';
 import './password-recovery.js';
 import './delete-account.js';
