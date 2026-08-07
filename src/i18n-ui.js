@@ -2,6 +2,7 @@ import './reanalysis-v2.js';
 import './version-compare.js';
 import './copilot.js';
 import './experiment-lab.js';
+import './workspace-rerender-hook.js';
 import './auth.js';
 import './entitlements.js';
 import './plan-gating.js';
