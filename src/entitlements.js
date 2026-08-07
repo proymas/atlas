@@ -57,7 +57,7 @@ export async function refreshEntitlements(){
   }
   loading=(async()=>{
     try{
-      const response=await fetch('/api/entitlements',{headers:{authorization:`Bearer ${accessToken}`},cache:'no-store'});
+      const response=await fetch('/api/projects?mode=entitlements',{headers:{authorization:`Bearer ${accessToken}`},cache:'no-store'});
       if(!response.ok)throw new Error(`entitlements_${response.status}`);
       const data=await response.json();
       state={plan:normalizedPlan(data.plan),status:data.status||'active',usage:data.usage||{},ready:true,error:null};
