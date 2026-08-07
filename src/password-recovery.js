@@ -1,0 +1,27 @@
+import { getLocale } from './i18n.js';
+
+const recoveryRequested = new URLSearchParams(location.hash.replace(/^#/, '')).get('type') === 'recovery';
+if (recoveryRequested) sessionStorage.setItem('atlas-password-recovery-pending', '1');
+
+const copy=()=>getLocale()==='en'?{
+  title:'Set a new password',
+  text:'Choose a new password for your Atlas account.',
+  password:'New password',confirm:'Confirm password',save:'Update password',working:'Updating…',
+  short:'Use at least 8 characters.',mismatch:'Passwords do not match.',failed:'The password could not be updated. Request a new recovery email and try again.',success:'Password updated. You are signed in to Atlas.'
+}:{
+  title:'Crea una nueva contraseña',
+  text:'Elige una nueva contraseña para tu cuenta de Atlas.',
+  password:'Nueva contraseña',confirm:'Confirmar contraseña',save:'Actualizar contraseña',working:'Actualizando…',
+  short:'Utiliza al menos 8 caracteres.',mismatch:'Las contraseñas no coinciden.',failed:'No se pudo actualizar la contraseña. Solicita un nuevo correo de recuperación e inténtalo de nuevo.',success:'Contraseña actualizada. Tu sesión de Atlas está iniciada.'
+};
+
+function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+
+function ensureStyles(){if(document.getElementById('atlas-password-recovery-styles'))return;const style=document.createElement('style');style.id='atlas-password-recovery-styles';style.textContent=`.atlas-recovery-modal{position:fixed;inset:0;z-index:1900;display:grid;place-items:center;padding:16px;background:rgba(2,7,15,.9);backdrop-filter:blur(14px)}.atlas-recovery-panel{width:min(460px,100%);border:1px solid var(--line);border-radius:24px;background:linear-gradient(150deg,#0f1d33,#071321);box-shadow:0 40px 120px rgba(0,0,0,.65);padding:22px;color:var(--text)}.atlas-recovery-panel h2{margin:4px 0 8px}.atlas-recovery-panel>p{color:var(--muted);margin:0 0 18px}.atlas-recovery-form{display:grid;gap:12px}.atlas-recovery-form label{display:grid;gap:6px;color:var(--muted);font-size:12px}.atlas-recovery-form input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:11px;background:#06111e;color:var(--text);padding:12px;font:inherit}.atlas-recovery-submit{border:1px solid rgba(91,201,255,.5);border-radius:11px;background:rgba(91,201,255,.12);color:var(--text);padding:11px 12px;font:inherit;font-weight:800;cursor:pointer}.atlas-recovery-message{min-height:18px;color:#ff8f8f;font-size:12px}.atlas-recovery-message.ok{color:#6ee7b7}@media(max-width:700px){.atlas-recovery-panel{padding:18px;border-radius:18px}}`;document.head.appendChild(style);}
+
+async function updatePassword(password){const auth=window.AtlasAuth;const session=auth?.getSession?.();const config=auth?.getConfig?.();if(!session?.access_token||!config?.enabled||!config?.url||!config?.anonKey)throw new Error('recovery_session_missing');const response=await fetch(`${config.url}/auth/v1/user`,{method:'PUT',headers:{'content-type':'application/json','apikey':config.anonKey,'authorization':`Bearer ${session.access_token}`},body:JSON.stringify({password})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data?.msg||data?.error_description||data?.error||'password_update_failed');return data;}
+
+function show(){if(sessionStorage.getItem('atlas-password-recovery-pending')!=='1'||document.getElementById('atlas-password-recovery-modal'))return;const auth=window.AtlasAuth;if(!auth?.isAuthenticated?.())return;ensureStyles();const c=copy();const root=document.createElement('div');root.id='atlas-password-recovery-modal';root.className='atlas-recovery-modal';root.innerHTML=`<section class="atlas-recovery-panel" role="dialog" aria-modal="true" aria-labelledby="atlas-recovery-title"><p class="eyebrow">ATLAS</p><h2 id="atlas-recovery-title">${esc(c.title)}</h2><p>${esc(c.text)}</p><form class="atlas-recovery-form"><label>${esc(c.password)}<input name="password" type="password" minlength="8" autocomplete="new-password" required></label><label>${esc(c.confirm)}<input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label><div class="atlas-recovery-message" aria-live="polite"></div><button class="atlas-recovery-submit" type="submit">${esc(c.save)}</button></form></section>`;document.body.appendChild(root);document.body.style.overflow='hidden';const form=root.querySelector('form'),message=root.querySelector('.atlas-recovery-message'),button=root.querySelector('button');form.addEventListener('submit',async event=>{event.preventDefault();const latest=copy(),data=new FormData(form),password=String(data.get('password')||''),confirm=String(data.get('confirm')||'');message.className='atlas-recovery-message';if(password.length<8){message.textContent=latest.short;return;}if(password!==confirm){message.textContent=latest.mismatch;return;}button.disabled=true;button.textContent=latest.working;try{await updatePassword(password);sessionStorage.removeItem('atlas-password-recovery-pending');message.className='atlas-recovery-message ok';message.textContent=latest.success;setTimeout(()=>{root.remove();document.body.style.overflow='';},1200);}catch(error){console.error('atlas_password_reset_failed',error);message.textContent=latest.failed;button.disabled=false;button.textContent=latest.save;}});}
+
+window.addEventListener('atlas:auth-ready',show);
+setTimeout(show,0);
