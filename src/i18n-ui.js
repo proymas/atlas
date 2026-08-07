@@ -1,5 +1,6 @@
 import './reanalysis-v2.js';
 import './version-compare.js';
+import './copilot-usage-gating.js';
 import './copilot.js';
 import './experiment-lab.js';
 import './workspace-rerender-hook.js';
