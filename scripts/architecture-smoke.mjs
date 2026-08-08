@@ -21,16 +21,29 @@ await walk(path.join(root,'api'));
 for(const file of jsFiles){
   const result=spawnSync(process.execPath,['--check',file],{encoding:'utf8'});
   if(result.status!==0)failures.push(`Syntax: ${path.relative(root,file)}\n${result.stderr.trim()}`);
+
+  const source=await fs.readFile(file,'utf8');
+  const imports=[...source.matchAll(/(?:from\s*|import\s*)['"](\.\.?\/[^'"]+)['"]/g)].map(match=>match[1]);
+  for(const specifier of imports){
+    const resolved=path.resolve(path.dirname(file),specifier);
+    const candidates=path.extname(resolved)?[resolved]:[`${resolved}.js`,path.join(resolved,'index.js')];
+    let exists=false;
+    for(const candidate of candidates){try{await fs.access(candidate);exists=true;break;}catch{}}
+    if(!exists)failures.push(`Broken import: ${path.relative(root,file)} -> ${specifier}`);
+  }
 }
 
 const read=async file=>fs.readFile(path.join(root,file),'utf8');
 const billing=await read('api/billing.js');
 const free=await read('src/free-stable.js');
 const i18nUi=await read('src/i18n-ui.js');
+const vercel=await read('vercel.json');
 
 if(!billing.includes("ATLAS_BILLING_MODE||'live'"))failures.push('Billing must default to live mode explicitly.');
-if(!billing.includes("event.livemode"))failures.push('Billing webhook must reject Stripe mode mismatches.');
+if(!billing.includes('event.livemode'))failures.push('Billing webhook must reject Stripe mode mismatches.');
+if(!billing.includes('WEBHOOK_TOLERANCE_SECONDS'))failures.push('Stripe webhook timestamp tolerance is missing.');
 if(/Join Atlas Pro waitlist|Apuntarme a Atlas Pro|\/api\/waitlist/.test(free))failures.push('Legacy Pro waitlist logic returned to free-stable.js.');
+if(/\/api\/waitlist/.test(vercel))failures.push('Legacy waitlist route returned to vercel.json.');
 if(!i18nUi.includes("'./billing-client.js'"))failures.push('Billing client is not loaded by the application bootstrap.');
 
 const apiEntries=(await fs.readdir(path.join(root,'api'),{withFileTypes:true})).filter(entry=>entry.isFile()&&entry.name.endsWith('.js'));
