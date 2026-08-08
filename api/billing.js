@@ -53,7 +53,17 @@ async function stripe(path,body,cfg){
 }
 
 async function plan(userId){const key=process.env.SUPABASE_SERVICE_ROLE_KEY,url=supabaseUrl();if(!key||!url)throw new Error('supabase_service_not_configured');const r=await fetch(`${url}/rest/v1/atlas_user_plans?user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`,{headers:{authorization:`Bearer ${key}`,apikey:key}}),rows=await r.json();return r.ok?rows?.[0]:null;}
-async function patch(userId,data){const key=process.env.SUPABASE_SERVICE_ROLE_KEY,url=supabaseUrl();if(!key||!url)throw new Error('supabase_service_not_configured');const r=await fetch(`${url}/rest/v1/atlas_user_plans?user_id=eq.${encodeURIComponent(userId)}`,{method:'PATCH',headers:{authorization:`Bearer ${key}`,apikey:key,'content-type':'application/json',prefer:'return=minimal'},body:JSON.stringify({...data,updated_at:new Date().toISOString()})});if(!r.ok)throw new Error('plan_update_failed');}
+async function patch(userId,data){
+  const key=process.env.SUPABASE_SERVICE_ROLE_KEY,url=supabaseUrl();
+  if(!key||!url)throw new Error('supabase_service_not_configured');
+  const r=await fetch(`${url}/rest/v1/atlas_user_plans?user_id=eq.${encodeURIComponent(userId)}`,{method:'PATCH',headers:{authorization:`Bearer ${key}`,apikey:key,'content-type':'application/json',prefer:'return=minimal'},body:JSON.stringify({...data,updated_at:new Date().toISOString()})});
+  if(!r.ok){
+    let detail='';
+    try{detail=(await r.text()).slice(0,500);}catch{}
+    if(isTestMode())console.error('supabase_plan_patch_failed',{status:r.status,urlHost:new URL(url).host,detail});
+    throw new Error(isTestMode()?`plan_update_failed_${r.status}`:'plan_update_failed');
+  }
+}
 
 function verify(payload,header,secret){
   if(!secret||!header)return false;
