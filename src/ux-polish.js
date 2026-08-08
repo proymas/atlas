@@ -2,7 +2,7 @@ const REDUCED=window.matchMedia?.('(prefers-reduced-motion: reduce)');
 const STYLE_ID='atlas-ux-polish';
 const MODALS='.workspace-modal,.atlas-auth-modal,.vc-modal,.experiment-modal,.copilot-modal,.compare-modal,.upgrade-modal,[role="dialog"]';
 const CLOSE='[data-workspace-close],.atlas-auth-close,.vc-close,.experiment-close,[data-copilot-close],[data-compare-close],[data-upgrade-close],[aria-label="Close"],[aria-label="Cerrar"]';
-let lastInteractive=null;
+let lastTrigger=null;
 let locked=false;
 let previousOverflow='';
 
@@ -19,6 +19,7 @@ function installStyles(){
   style.id=STYLE_ID;
   style.textContent=`
     :root{--atlas-ux-ease:cubic-bezier(.22,.8,.24,1)}
+    html{scroll-behavior:smooth}
     #progress-bar{transition:width 360ms var(--atlas-ux-ease)!important}
     .workspace-card,.report-grid article,.preview-columns section{transition:translate 170ms var(--atlas-ux-ease)}
     @media(hover:hover) and (pointer:fine){.workspace-card:hover,.report-grid article:hover,.preview-columns section:hover{translate:0 -2px}}
@@ -34,7 +35,7 @@ function installStyles(){
     .atlas-action-confirm{animation:atlasConfirm 360ms var(--atlas-ux-ease)}
     @keyframes atlasConfirm{50%{scale:.985}100%{scale:1}}
     @media(max-width:700px){.workspace-card:hover,.report-grid article:hover,.preview-columns section:hover{translate:none}.atlas-char-count{font-size:10.5px}}
-    @media(prefers-reduced-motion:reduce){#progress-bar,.workspace-card,.report-grid article,.preview-columns section,.atlas-char-count{transition:none!important}.workspace-toast,.atlas-busy::after,.atlas-action-confirm{animation:none!important}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}#progress-bar,.workspace-card,.report-grid article,.preview-columns section,.atlas-char-count{transition:none!important}.workspace-toast,.atlas-busy::after,.atlas-action-confirm{animation:none!important}}
   `;
   document.head.appendChild(style);
 }
@@ -51,22 +52,33 @@ function syncScrollLock(){
   }
 }
 
+function restoreTrigger(){
+  requestAnimationFrame(()=>{
+    if(lastTrigger?.isConnected&&visible(lastTrigger))lastTrigger.focus({preventScroll:true});
+  });
+}
+
 function bindEscapeAndFocus(){
   document.addEventListener('pointerdown',event=>{
     const target=event.target instanceof Element?event.target.closest('button,a,[role="button"]'):null;
-    if(target instanceof HTMLElement)lastInteractive=target;
+    if(target instanceof HTMLElement&&!target.matches(CLOSE))lastTrigger=target;
   },{capture:true,passive:true});
+
+  document.addEventListener('click',event=>{
+    const close=event.target instanceof Element?event.target.closest(CLOSE):null;
+    if(close)requestAnimationFrame(restoreTrigger);
+  },{passive:true});
 
   document.addEventListener('keydown',event=>{
     if(event.key!=='Escape')return;
-    const roots=[...document.querySelectorAll(MODALS)].filter(visible);
+    const roots=[...document.querySelectorAll(MODALS)].filter(el=>visible(el)&&!el.closest('.hidden'));
     const root=roots.at(-1);
     if(!root)return;
     const close=root.querySelector(CLOSE)||root.closest(MODALS)?.querySelector(CLOSE);
     if(close instanceof HTMLElement){
       event.preventDefault();
       close.click();
-      requestAnimationFrame(()=>{if(lastInteractive?.isConnected)lastInteractive.focus({preventScroll:true});});
+      restoreTrigger();
     }
   });
 }
@@ -118,8 +130,28 @@ function bindActionFeedback(){
   },{passive:true});
 }
 
+function bindLanguageKeyboard(){
+  const switcher=document.querySelector('.language-switcher');
+  if(!switcher)return;
+  switcher.setAttribute('role','group');
+  switcher.addEventListener('keydown',event=>{
+    if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+    const buttons=[...switcher.querySelectorAll('[data-locale]')];
+    const current=buttons.indexOf(document.activeElement);
+    if(current<0)return;
+    event.preventDefault();
+    const next=event.key==='ArrowRight'?(current+1)%buttons.length:(current-1+buttons.length)%buttons.length;
+    buttons[next].focus();
+    buttons[next].click();
+  });
+}
+
 function observeUi(){
-  const observer=new MutationObserver(()=>requestAnimationFrame(syncScrollLock));
+  let pending=0;
+  const observer=new MutationObserver(()=>{
+    if(pending)return;
+    pending=requestAnimationFrame(()=>{pending=0;syncScrollLock();});
+  });
   observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','hidden','style']});
   syncScrollLock();
 }
@@ -130,6 +162,7 @@ function init(){
   bindBusyStates();
   bindActionFeedback();
   bindEscapeAndFocus();
+  bindLanguageKeyboard();
   observeUi();
 }
 
