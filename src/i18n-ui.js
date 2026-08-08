@@ -12,3 +12,4 @@ import './upgrade-page.js';
 import './billing-client.js';
 import './auth-cloud-isolation.js';
 import './header-fix.js';
+import './motion.js';
