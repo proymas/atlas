@@ -1,197 +1,34 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
 const A4 = [595.28, 841.89];
-const C = {
-  navy: rgb(0.035, 0.075, 0.13),
-  blue: rgb(0.12, 0.63, 0.92),
-  violet: rgb(0.37, 0.43, 0.94),
-  green: rgb(0.16, 0.68, 0.43),
-  ink: rgb(0.08, 0.11, 0.16),
-  muted: rgb(0.38, 0.43, 0.51),
-  line: rgb(0.86, 0.89, 0.93),
-  soft: rgb(0.96, 0.975, 0.99),
-  white: rgb(1, 1, 1),
-};
+const C = {navy:rgb(.035,.075,.13),blue:rgb(.12,.63,.92),violet:rgb(.37,.43,.94),green:rgb(.16,.68,.43),ink:rgb(.08,.11,.16),muted:rgb(.38,.43,.51),line:rgb(.86,.89,.93),soft:rgb(.96,.975,.99),white:rgb(1,1,1)};
+const clean=value=>String(value??'').replace(/[\u2013\u2014]/g,'-').replace(/[\u2022]/g,'*').trim();
+const list=value=>Array.isArray(value)?value.map(clean).filter(Boolean):[];
+const number=value=>Number.isFinite(Number(value))?Math.max(0,Math.min(100,Math.round(Number(value)))):0;
+function wrap(text,font,size,maxWidth){const words=clean(text).split(/\s+/).filter(Boolean),lines=[];let line='';for(const word of words){const candidate=line?`${line} ${word}`:word;if(font.widthOfTextAtSize(candidate,size)<=maxWidth)line=candidate;else{if(line)lines.push(line);line=word;}}if(line)lines.push(line);return lines.length?lines:[''];}
+function drawLines(page,text,{x,y,width,font,size=10,color=C.ink,lineHeight=14,maxLines=99}){const lines=wrap(text,font,size,width).slice(0,maxLines);lines.forEach((line,index)=>page.drawText(line,{x,y:y-index*lineHeight,size,font,color}));return y-lines.length*lineHeight;}
+function header(page,fonts,locale,reportId,pageNo){page.drawText('ATLAS',{x:40,y:807,size:13,font:fonts.bold,color:C.navy});page.drawText(locale==='en'?'VALIDATION REPORT':'INFORME DE VALIDACION',{x:98,y:807,size:8,font:fonts.bold,color:C.blue});page.drawText(`${reportId}  |  ${pageNo}`,{x:450,y:807,size:8,font:fonts.regular,color:C.muted});page.drawLine({start:{x:40,y:795},end:{x:555,y:795},thickness:.8,color:C.line});}
+function footer(page,fonts,locale){page.drawLine({start:{x:40,y:35},end:{x:555,y:35},thickness:.7,color:C.line});page.drawText(locale==='en'?'Atlas - Think before you build':'Atlas - Piensa antes de construir',{x:40,y:20,size:8,font:fonts.regular,color:C.muted});}
+function card(page,x,y,w,h,title,items,fonts,accent=C.blue){page.drawRectangle({x,y,width:w,height:h,color:C.white,borderColor:C.line,borderWidth:1});page.drawRectangle({x,y:y+h-5,width:w,height:5,color:accent});page.drawText(clean(title),{x:x+14,y:y+h-25,size:10,font:fonts.bold,color:C.ink});let cursor=y+h-44;const source=items.length?items:['Sin datos suficientes.'];for(const item of source.slice(0,5)){page.drawCircle({x:x+17,y:cursor+3,size:2,color:accent});const lines=wrap(item,fonts.regular,8.5,w-42).slice(0,3);lines.forEach((line,i)=>page.drawText(line,{x:x+25,y:cursor-i*11,size:8.5,font:fonts.regular,color:C.muted}));cursor-=Math.max(18,lines.length*11+6);if(cursor<y+12)break;}}
+function parseStep(step,index,locale){const text=clean(step).replace(/^D[ií]a\s+\d+\s*:\s*/i,'').replace(/^Day\s+\d+\s*:\s*/i,'');const parts=text.split(locale==='en'?/\s+Deliverable\s*:\s*/i:/\s+Entregable\s*:\s*/i);return{day:index+1,action:parts[0]||text,deliverable:parts.slice(1).join(' ')}};
 
-const clean = value => String(value ?? '').replace(/[\u2013\u2014]/g, '-').replace(/[\u2022]/g, '*').trim();
-const list = value => Array.isArray(value) ? value.map(clean).filter(Boolean) : [];
-const number = value => Number.isFinite(Number(value)) ? Math.max(0, Math.min(100, Math.round(Number(value)))) : 0;
+export default async function handler(req,res){
+ if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
+ try{
+  const body=req.body||{},locale=body.locale==='en'?'en':'es',tier=body.tier==='pro'?'pro':'free',report=body.report||{},experiment=report.experiment||report.validationExperiment||{},breakdown=report.scoreBreakdown||{};
+  const pdf=await PDFDocument.create(),fonts={regular:await pdf.embedFont(StandardFonts.Helvetica),bold:await pdf.embedFont(StandardFonts.HelveticaBold)};
+  const reportId=`ATLAS-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
+  const date=new Intl.DateTimeFormat(locale==='en'?'en-GB':'es-ES',{dateStyle:'medium'}).format(new Date()),score=number(report.score),verdict=clean(report.verdict||(locale==='en'?'UNASSESSED':'SIN EVALUAR')),summary=clean(report.executiveSummary||report.summary||''),idea=clean(body.idea||(locale==='en'?'Business idea':'Idea de negocio'));
+  const metrics=[[locale==='en'?'Problem':'Problema',breakdown.problemEvidence],[locale==='en'?'Customer':'Cliente',breakdown.customerSpecificity],[locale==='en'?'Payment':'Pago',breakdown.paymentEvidence],[locale==='en'?'Distribution':'Distribucion',breakdown.distributionFeasibility],[locale==='en'?'Delivery':'Entrega',breakdown.deliveryEconomics]];
 
-function wrap(text, font, size, maxWidth) {
-  const words = clean(text).split(/\s+/).filter(Boolean);
-  const lines = [];
-  let line = '';
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) line = candidate;
-    else {
-      if (line) lines.push(line);
-      line = word;
-    }
+  let page=pdf.addPage(A4);header(page,fonts,locale,reportId,1);page.drawText(locale==='en'?'EXECUTIVE VALIDATION':'VALIDACION EJECUTIVA',{x:40,y:755,size:9,font:fonts.bold,color:C.blue});let y=drawLines(page,idea,{x:40,y:725,width:500,font:fonts.bold,size:25,lineHeight:29,maxLines:3});page.drawText(date,{x:40,y:y-4,size:9,font:fonts.regular,color:C.muted});y-=46;page.drawRectangle({x:40,y:y-150,width:515,height:150,color:C.navy});page.drawText(locale==='en'?'VERDICT':'VEREDICTO',{x:62,y:y-30,size:9,font:fonts.bold,color:C.blue});page.drawText(verdict,{x:62,y:y-61,size:23,font:fonts.bold,color:C.white});page.drawText(String(score),{x:445,y:y-76,size:55,font:fonts.bold,color:C.white});page.drawText('/100',{x:500,y:y-76,size:10,font:fonts.regular,color:C.blue});drawLines(page,summary,{x:62,y:y-92,width:350,font:fonts.regular,size:9.5,color:rgb(.78,.84,.91),lineHeight:13,maxLines:4});y-=185;metrics.forEach(([label,value],i)=>{const x=40+i*103;page.drawRectangle({x,y:y-78,width:95,height:78,color:C.soft,borderColor:C.line,borderWidth:1});page.drawText(clean(label),{x:x+10,y:y-22,size:8,font:fonts.bold,color:C.muted});page.drawText(`${Math.max(0,Math.min(20,Math.round(Number(value)||0)))}/20`,{x:x+10,y:y-51,size:18,font:fonts.bold,color:C.ink});});y-=105;card(page,40,y-160,250,160,locale==='en'?'Positive signals':'Senales favorables',list(report.strengths),fonts,C.green);card(page,305,y-160,250,160,locale==='en'?'Open risks':'Riesgos abiertos',list(report.risks),fonts,C.violet);footer(page,fonts,locale);
+
+  page=pdf.addPage(A4);header(page,fonts,locale,reportId,2);page.drawText(locale==='en'?'DIAGNOSIS':'DIAGNOSTICO',{x:40,y:755,size:9,font:fonts.bold,color:C.blue});page.drawText(locale==='en'?'What is known, assumed and still risky':'Lo que sabemos, suponemos y aun debemos demostrar',{x:40,y:720,size:22,font:fonts.bold,color:C.ink});card(page,40,485,250,195,locale==='en'?'Critical assumptions':'Supuestos criticos',list(report.criticalAssumptions||report.assumptions),fonts,C.blue);card(page,305,485,250,195,locale==='en'?'Do not build yet':'No construyas todavia',list(report.doNotBuildYet),fonts,C.violet);card(page,40,250,250,195,locale==='en'?'Contradictions':'Contradicciones',list(report.contradictions),fonts,C.green);card(page,305,250,250,195,locale==='en'?'Recommended actions':'Acciones recomendadas',list(report.recommendations),fonts,C.blue);footer(page,fonts,locale);
+
+  if(tier==='pro'){
+   page=pdf.addPage(A4);header(page,fonts,locale,reportId,3);page.drawText(locale==='en'?'7-DAY EVIDENCE TEST':'PRUEBA DE EVIDENCIA DE 7 DIAS',{x:40,y:755,size:9,font:fonts.bold,color:C.blue});page.drawText(clean(experiment.name||(locale==='en'?'Validation experiment':'Experimento de validacion')),{x:40,y:720,size:21,font:fonts.bold,color:C.ink});const meta=[[locale==='en'?'Hypothesis':'Hipotesis',experiment.hypothesis],[locale==='en'?'Metric':'Metrica',experiment.metric],[locale==='en'?'Success threshold':'Umbral de exito',experiment.successThreshold]].filter(([,v])=>clean(v));let metaY=688;meta.forEach(([label,value])=>{page.drawText(clean(label).toUpperCase(),{x:40,y:metaY,size:7.5,font:fonts.bold,color:C.blue});metaY=drawLines(page,value,{x:145,y:metaY,width:395,font:fonts.regular,size:8.5,color:C.muted,lineHeight:11,maxLines:2})-8;});const steps=list(experiment.steps).slice(0,7).map((step,index)=>parseStep(step,index,locale));let rowY=Math.min(625,metaY-12);for(const step of steps){page.drawRectangle({x:40,y:rowY-67,width:515,height:61,color:step.day%2?C.soft:C.white,borderColor:C.line,borderWidth:.7});page.drawRectangle({x:54,y:rowY-35,width:13,height:13,borderColor:C.blue,borderWidth:1});page.drawText(`${locale==='en'?'DAY':'DIA'} ${step.day}`,{x:80,y:rowY-22,size:8,font:fonts.bold,color:C.blue});drawLines(page,step.action,{x:80,y:rowY-39,width:450,font:fonts.bold,size:9.2,color:C.ink,lineHeight:11,maxLines:2});if(step.deliverable)drawLines(page,`${locale==='en'?'Deliverable':'Entregable'}: ${step.deliverable}`,{x:80,y:rowY-57,width:450,font:fonts.regular,size:7.8,color:C.muted,lineHeight:9,maxLines:1});rowY-=70;}footer(page,fonts,locale);
+   page=pdf.addPage(A4);header(page,fonts,locale,reportId,4);page.drawText(locale==='en'?'EVIDENCE SCORECARD':'PUNTUACION DE EVIDENCIA',{x:40,y:755,size:9,font:fonts.bold,color:C.blue});page.drawText(locale==='en'?'Decision-ready view':'Vista para tomar una decision',{x:40,y:720,size:23,font:fonts.bold,color:C.ink});let barY=665;metrics.forEach(([label,value])=>{const v=Math.max(0,Math.min(20,Math.round(Number(value)||0)));page.drawText(clean(label),{x:40,y:barY,size:10,font:fonts.bold,color:C.ink});page.drawText(`${v}/20`,{x:510,y:barY,size:10,font:fonts.bold,color:C.ink});page.drawRectangle({x:40,y:barY-18,width:515,height:8,color:C.line});page.drawRectangle({x:40,y:barY-18,width:515*(v/20),height:8,color:v>=14?C.green:v>=8?C.blue:C.violet});barY-=62;});page.drawRectangle({x:40,y:165,width:515,height:130,color:C.navy});page.drawText(locale==='en'?'NEXT DECISION':'PROXIMA DECISION',{x:60,y:265,size:8,font:fonts.bold,color:C.blue});const decision=experiment.decisionIfSuccess||experiment.decisionIfFailure||(locale==='en'?'Run the evidence test and update the decision with observed data.':'Ejecuta la prueba y actualiza la decision con datos observados.');drawLines(page,decision,{x:60,y:235,width:470,font:fonts.bold,size:14,color:C.white,lineHeight:18,maxLines:4});footer(page,fonts,locale);
   }
-  if (line) lines.push(line);
-  return lines.length ? lines : [''];
-}
-
-function drawLines(page, text, { x, y, width, font, size = 10, color = C.ink, lineHeight = 14, maxLines = 99 }) {
-  const lines = wrap(text, font, size, width).slice(0, maxLines);
-  lines.forEach((line, index) => page.drawText(line, { x, y: y - index * lineHeight, size, font, color }));
-  return y - lines.length * lineHeight;
-}
-
-function header(page, fonts, locale, reportId, pageNo) {
-  page.drawText('ATLAS', { x: 40, y: 807, size: 13, font: fonts.bold, color: C.navy });
-  page.drawText(locale === 'en' ? 'VALIDATION REPORT' : 'INFORME DE VALIDACION', { x: 98, y: 807, size: 8, font: fonts.bold, color: C.blue });
-  page.drawText(`${reportId}  |  ${pageNo}`, { x: 450, y: 807, size: 8, font: fonts.regular, color: C.muted });
-  page.drawLine({ start: { x: 40, y: 795 }, end: { x: 555, y: 795 }, thickness: 0.8, color: C.line });
-}
-
-function footer(page, fonts, locale) {
-  page.drawLine({ start: { x: 40, y: 35 }, end: { x: 555, y: 35 }, thickness: 0.7, color: C.line });
-  page.drawText(locale === 'en' ? 'Atlas - Think before you build' : 'Atlas - Piensa antes de construir', { x: 40, y: 20, size: 8, font: fonts.regular, color: C.muted });
-}
-
-function card(page, x, y, w, h, title, items, fonts, accent = C.blue) {
-  page.drawRectangle({ x, y, width: w, height: h, color: C.white, borderColor: C.line, borderWidth: 1 });
-  page.drawRectangle({ x, y: y + h - 5, width: w, height: 5, color: accent });
-  page.drawText(clean(title), { x: x + 14, y: y + h - 25, size: 10, font: fonts.bold, color: C.ink });
-  let cursor = y + h - 44;
-  const source = items.length ? items : ['Sin datos suficientes.'];
-  for (const item of source.slice(0, 5)) {
-    page.drawCircle({ x: x + 17, y: cursor + 3, size: 2, color: accent });
-    const lines = wrap(item, fonts.regular, 8.5, w - 42).slice(0, 3);
-    lines.forEach((line, i) => page.drawText(line, { x: x + 25, y: cursor - i * 11, size: 8.5, font: fonts.regular, color: C.muted }));
-    cursor -= Math.max(18, lines.length * 11 + 6);
-    if (cursor < y + 12) break;
-  }
-}
-
-function parseStep(step, index, locale) {
-  const text = clean(step).replace(/^D[ií]a\s+\d+\s*:\s*/i, '').replace(/^Day\s+\d+\s*:\s*/i, '');
-  const parts = text.split(locale === 'en' ? /\s+Deliverable\s*:\s*/i : /\s+Entregable\s*:\s*/i);
-  return { day: index + 1, action: parts[0] || text, deliverable: parts.slice(1).join(' ') };
-}
-
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  try {
-    const body = req.body || {};
-    const locale = body.locale === 'en' ? 'en' : 'es';
-    const report = body.report || {};
-    const experiment = report.experiment || report.validationExperiment || {};
-    const breakdown = report.scoreBreakdown || {};
-    const pdf = await PDFDocument.create();
-    const fonts = {
-      regular: await pdf.embedFont(StandardFonts.Helvetica),
-      bold: await pdf.embedFont(StandardFonts.HelveticaBold),
-    };
-    const reportId = `ATLAS-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
-    const date = new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'es-ES', { dateStyle: 'medium' }).format(new Date());
-    const score = number(report.score);
-    const verdict = clean(report.verdict || (locale === 'en' ? 'UNASSESSED' : 'SIN EVALUAR'));
-    const summary = clean(report.executiveSummary || report.summary || '');
-    const idea = clean(body.idea || (locale === 'en' ? 'Business idea' : 'Idea de negocio'));
-
-    // Page 1: executive summary
-    let page = pdf.addPage(A4);
-    header(page, fonts, locale, reportId, 1);
-    page.drawText(locale === 'en' ? 'EXECUTIVE VALIDATION' : 'VALIDACION EJECUTIVA', { x: 40, y: 755, size: 9, font: fonts.bold, color: C.blue });
-    let y = drawLines(page, idea, { x: 40, y: 725, width: 500, font: fonts.bold, size: 25, lineHeight: 29, maxLines: 3 });
-    page.drawText(date, { x: 40, y: y - 4, size: 9, font: fonts.regular, color: C.muted });
-    y -= 46;
-    page.drawRectangle({ x: 40, y: y - 150, width: 515, height: 150, color: C.navy });
-    page.drawText(locale === 'en' ? 'VERDICT' : 'VEREDICTO', { x: 62, y: y - 30, size: 9, font: fonts.bold, color: C.blue });
-    page.drawText(verdict, { x: 62, y: y - 61, size: 23, font: fonts.bold, color: C.white });
-    page.drawText(String(score), { x: 445, y: y - 76, size: 55, font: fonts.bold, color: C.white });
-    page.drawText('/100', { x: 500, y: y - 76, size: 10, font: fonts.regular, color: C.blue });
-    drawLines(page, summary, { x: 62, y: y - 92, width: 350, font: fonts.regular, size: 9.5, color: rgb(.78,.84,.91), lineHeight: 13, maxLines: 4 });
-    y -= 185;
-    const metrics = [
-      [locale === 'en' ? 'Problem' : 'Problema', breakdown.problemEvidence],
-      [locale === 'en' ? 'Customer' : 'Cliente', breakdown.customerSpecificity],
-      [locale === 'en' ? 'Payment' : 'Pago', breakdown.paymentEvidence],
-      [locale === 'en' ? 'Distribution' : 'Distribucion', breakdown.distributionFeasibility],
-      [locale === 'en' ? 'Delivery' : 'Entrega', breakdown.deliveryEconomics],
-    ];
-    metrics.forEach(([label, value], i) => {
-      const x = 40 + i * 103;
-      page.drawRectangle({ x, y: y - 78, width: 95, height: 78, color: C.soft, borderColor: C.line, borderWidth: 1 });
-      page.drawText(clean(label), { x: x + 10, y: y - 22, size: 8, font: fonts.bold, color: C.muted });
-      page.drawText(`${Math.max(0, Math.min(20, Math.round(Number(value) || 0)))}/20`, { x: x + 10, y: y - 51, size: 18, font: fonts.bold, color: C.ink });
-    });
-    y -= 105;
-    card(page, 40, y - 160, 250, 160, locale === 'en' ? 'Positive signals' : 'Senales favorables', list(report.strengths), fonts, C.green);
-    card(page, 305, y - 160, 250, 160, locale === 'en' ? 'Open risks' : 'Riesgos abiertos', list(report.risks), fonts, C.violet);
-    footer(page, fonts, locale);
-
-    // Page 2: diagnosis
-    page = pdf.addPage(A4);
-    header(page, fonts, locale, reportId, 2);
-    page.drawText(locale === 'en' ? 'DIAGNOSIS' : 'DIAGNOSTICO', { x: 40, y: 755, size: 9, font: fonts.bold, color: C.blue });
-    page.drawText(locale === 'en' ? 'What is known, assumed and still risky' : 'Lo que sabemos, suponemos y aun debemos demostrar', { x: 40, y: 720, size: 22, font: fonts.bold, color: C.ink });
-    card(page, 40, 485, 250, 195, locale === 'en' ? 'Critical assumptions' : 'Supuestos criticos', list(report.criticalAssumptions || report.assumptions), fonts, C.blue);
-    card(page, 305, 485, 250, 195, locale === 'en' ? 'Do not build yet' : 'No construyas todavia', list(report.doNotBuildYet), fonts, C.violet);
-    card(page, 40, 250, 250, 195, locale === 'en' ? 'Contradictions' : 'Contradicciones', list(report.contradictions), fonts, C.green);
-    card(page, 305, 250, 250, 195, locale === 'en' ? 'Recommended actions' : 'Acciones recomendadas', list(report.recommendations), fonts, C.blue);
-    footer(page, fonts, locale);
-
-    // Page 3: 7-day experiment
-    page = pdf.addPage(A4);
-    header(page, fonts, locale, reportId, 3);
-    page.drawText(locale === 'en' ? '7-DAY EVIDENCE TEST' : 'PRUEBA DE EVIDENCIA DE 7 DIAS', { x: 40, y: 755, size: 9, font: fonts.bold, color: C.blue });
-    page.drawText(clean(experiment.name || (locale === 'en' ? 'Validation experiment' : 'Experimento de validacion')), { x: 40, y: 720, size: 21, font: fonts.bold, color: C.ink });
-    const meta = [
-      [locale === 'en' ? 'Hypothesis' : 'Hipotesis', experiment.hypothesis],
-      [locale === 'en' ? 'Metric' : 'Metrica', experiment.metric],
-      [locale === 'en' ? 'Success threshold' : 'Umbral de exito', experiment.successThreshold],
-    ].filter(([, v]) => clean(v));
-    let metaY = 688;
-    meta.forEach(([label, value]) => {
-      page.drawText(clean(label).toUpperCase(), { x: 40, y: metaY, size: 7.5, font: fonts.bold, color: C.blue });
-      metaY = drawLines(page, value, { x: 145, y: metaY, width: 395, font: fonts.regular, size: 8.5, color: C.muted, lineHeight: 11, maxLines: 2 }) - 8;
-    });
-    const steps = list(experiment.steps).slice(0, 7).map((step, index) => parseStep(step, index, locale));
-    let rowY = Math.min(625, metaY - 12);
-    for (const step of steps) {
-      page.drawRectangle({ x: 40, y: rowY - 67, width: 515, height: 61, color: step.day % 2 ? C.soft : C.white, borderColor: C.line, borderWidth: .7 });
-      page.drawRectangle({ x: 54, y: rowY - 35, width: 13, height: 13, borderColor: C.blue, borderWidth: 1 });
-      page.drawText(`${locale === 'en' ? 'DAY' : 'DIA'} ${step.day}`, { x: 80, y: rowY - 22, size: 8, font: fonts.bold, color: C.blue });
-      drawLines(page, step.action, { x: 80, y: rowY - 39, width: 450, font: fonts.bold, size: 9.2, color: C.ink, lineHeight: 11, maxLines: 2 });
-      if (step.deliverable) drawLines(page, `${locale === 'en' ? 'Deliverable' : 'Entregable'}: ${step.deliverable}`, { x: 80, y: rowY - 57, width: 450, font: fonts.regular, size: 7.8, color: C.muted, lineHeight: 9, maxLines: 1 });
-      rowY -= 70;
-    }
-    footer(page, fonts, locale);
-
-    // Page 4: decision scorecard
-    page = pdf.addPage(A4);
-    header(page, fonts, locale, reportId, 4);
-    page.drawText(locale === 'en' ? 'EVIDENCE SCORECARD' : 'PUNTUACION DE EVIDENCIA', { x: 40, y: 755, size: 9, font: fonts.bold, color: C.blue });
-    page.drawText(locale === 'en' ? 'Decision-ready view' : 'Vista para tomar una decision', { x: 40, y: 720, size: 23, font: fonts.bold, color: C.ink });
-    let barY = 665;
-    metrics.forEach(([label, value]) => {
-      const v = Math.max(0, Math.min(20, Math.round(Number(value) || 0)));
-      page.drawText(clean(label), { x: 40, y: barY, size: 10, font: fonts.bold, color: C.ink });
-      page.drawText(`${v}/20`, { x: 510, y: barY, size: 10, font: fonts.bold, color: C.ink });
-      page.drawRectangle({ x: 40, y: barY - 18, width: 515, height: 8, color: C.line });
-      page.drawRectangle({ x: 40, y: barY - 18, width: 515 * (v / 20), height: 8, color: v >= 14 ? C.green : v >= 8 ? C.blue : C.violet });
-      barY -= 62;
-    });
-    page.drawRectangle({ x: 40, y: 165, width: 515, height: 130, color: C.navy });
-    page.drawText(locale === 'en' ? 'NEXT DECISION' : 'PROXIMA DECISION', { x: 60, y: 265, size: 8, font: fonts.bold, color: C.blue });
-    const decision = experiment.decisionIfSuccess || experiment.decisionIfFailure || (locale === 'en' ? 'Run the evidence test and update the decision with observed data.' : 'Ejecuta la prueba y actualiza la decision con datos observados.');
-    drawLines(page, decision, { x: 60, y: 235, width: 470, font: fonts.bold, size: 14, color: C.white, lineHeight: 18, maxLines: 4 });
-    footer(page, fonts, locale);
-
-    pdf.setTitle(locale === 'en' ? 'Atlas Validation Report' : 'Informe de Validacion Atlas');
-    pdf.setAuthor('Atlas');
-    pdf.setSubject(idea);
-    const bytes = await pdf.save();
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="atlas-report-${reportId.toLowerCase()}.pdf"`);
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).send(Buffer.from(bytes));
-  } catch (error) {
-    console.error('report_pdf_failed', error);
-    return res.status(500).json({ error: 'Atlas could not generate the PDF.' });
-  }
+  pdf.setTitle(locale==='en'?'Atlas Validation Report':'Informe de Validacion Atlas');pdf.setAuthor('Atlas');pdf.setSubject(idea);const bytes=await pdf.save();res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition',`attachment; filename="atlas-report-${reportId.toLowerCase()}.pdf"`);res.setHeader('Cache-Control','no-store');return res.status(200).send(Buffer.from(bytes));
+ }catch(error){console.error('report_pdf_failed',error);return res.status(500).json({error:'Atlas could not generate the PDF.'});}
 }
