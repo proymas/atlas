@@ -46,6 +46,7 @@ export function applyTranslations() {
   document.querySelectorAll('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml).replace(/\n/g, '<br>'); });
   document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder)));
   document.querySelectorAll('[data-locale]').forEach((el) => el.setAttribute('aria-pressed', String(el.dataset.locale === locale)));
+  document.querySelectorAll('.language-switcher').forEach((el) => el.dataset.activeLocale = locale);
 }
 export function initI18n() {
   document.querySelectorAll('[data-locale]').forEach((button) => button.addEventListener('click', () => setLocale(button.dataset.locale)));
