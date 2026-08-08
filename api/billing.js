@@ -124,3 +124,5 @@ export default async function handler(req,res){
     return res.status(500).json({error:e?.message||'billing_failed'});
   }
 }
+
+// Deployment marker: refresh Preview environment variables for isolated Stripe TEST mode.
