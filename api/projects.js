@@ -1,5 +1,6 @@
 const PROJECTS_BRIDGE_URL = 'https://ntrnchrtnfjyrsagxxbo.supabase.co/functions/v1/atlas-projects-bridge';
 const ENTITLEMENTS_BRIDGE_URL = 'https://ntrnchrtnfjyrsagxxbo.supabase.co/functions/v1/atlas-entitlements';
+const TEST_RESET_CUTOFF = Date.parse('2026-08-08T15:06:00Z');
 
 const billingMode=()=>String(process.env.ATLAS_BILLING_MODE||'live').trim().toLowerCase()==='test'?'test':'live';
 const isTestMode=()=>billingMode()==='test';
@@ -49,6 +50,9 @@ async function testEntitlements(req){
   if(!response.ok){const error=new Error('unauthorized');error.status=401;throw error;}
   const user=await response.json();
   const billing=user?.app_metadata?.atlas_test_billing||{};
+  const updatedAt=Date.parse(String(billing.updated_at||''));
+  const fresh=Number.isFinite(updatedAt)&&updatedAt>TEST_RESET_CUTOFF;
+  if(!fresh)return {plan:'free',status:'active',usage:{},billing:{plan:'free',status:'inactive',source:'qa_baseline'}};
   return {plan:billing.plan==='pro'?'pro':'free',status:billing.status||'active',usage:{},billing};
 }
 
