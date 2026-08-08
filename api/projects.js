@@ -5,6 +5,7 @@ const billingMode=()=>String(process.env.ATLAS_BILLING_MODE||'live').trim().toLo
 const isTestMode=()=>billingMode()==='test';
 const supabaseUrl=()=>String(process.env.SUPABASE_URL||process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim().replace(/\/$/,'');
 const anonKey=()=>String(process.env.SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||process.env.SUPABASE_PUBLISHABLE_KEY||'').trim();
+const sleep=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
 
 function bearer(req) {
   const value = String(req.headers.authorization || '');
@@ -19,20 +20,32 @@ async function bridge(req, baseUrl, path = '', options = {}) {
     throw error;
   }
 
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      'content-type': 'application/json',
-      authorization,
-      ...(options.headers || {}),
-    },
-  });
-
-  const text = await response.text();
+  let response;
   let data = null;
-  if (text) {
-    try { data = JSON.parse(text); } catch { data = text; }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers: {
+        'content-type': 'application/json',
+        authorization,
+        ...(options.headers || {}),
+      },
+    });
+
+    const text = await response.text();
+    data = null;
+    if (text) {
+      try { data = JSON.parse(text); } catch { data = text; }
+    }
+
+    const clockSkew = !response.ok && String(data?.error || '').toLowerCase().includes('jwt issued at future');
+    if (clockSkew && attempt === 0) {
+      await sleep(1200);
+      continue;
+    }
+    break;
   }
+
   if (!response.ok) {
     const error = new Error(data?.error || `bridge_${response.status}`);
     error.status = response.status;
