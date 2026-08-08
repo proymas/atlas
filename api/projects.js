@@ -1,6 +1,11 @@
 const PROJECTS_BRIDGE_URL = 'https://ntrnchrtnfjyrsagxxbo.supabase.co/functions/v1/atlas-projects-bridge';
 const ENTITLEMENTS_BRIDGE_URL = 'https://ntrnchrtnfjyrsagxxbo.supabase.co/functions/v1/atlas-entitlements';
 
+const billingMode=()=>String(process.env.ATLAS_BILLING_MODE||'live').trim().toLowerCase()==='test'?'test':'live';
+const isTestMode=()=>billingMode()==='test';
+const supabaseUrl=()=>String(process.env.SUPABASE_URL||process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim().replace(/\/$/,'');
+const anonKey=()=>String(process.env.SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||process.env.SUPABASE_PUBLISHABLE_KEY||'').trim();
+
 function bearer(req) {
   const value = String(req.headers.authorization || '');
   return value.toLowerCase().startsWith('bearer ') ? value : '';
@@ -37,12 +42,22 @@ async function bridge(req, baseUrl, path = '', options = {}) {
   return data;
 }
 
+async function testEntitlements(req){
+  const authorization=bearer(req),url=supabaseUrl(),key=anonKey();
+  if(!authorization||!url||!key){const error=new Error('unauthorized');error.status=401;throw error;}
+  const response=await fetch(`${url}/auth/v1/user`,{headers:{authorization,apikey:key}});
+  if(!response.ok){const error=new Error('unauthorized');error.status=401;throw error;}
+  const user=await response.json();
+  const billing=user?.app_metadata?.atlas_test_billing||{};
+  return {plan:billing.plan==='pro'?'pro':'free',status:billing.status||'active',usage:{},billing};
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
   try {
     if (req.method === 'GET' && String(req.query?.mode || '') === 'entitlements') {
-      const data = await bridge(req, ENTITLEMENTS_BRIDGE_URL, '', { method: 'GET' });
+      const data=isTestMode()?await testEntitlements(req):await bridge(req, ENTITLEMENTS_BRIDGE_URL, '', { method: 'GET' });
       return res.status(200).json(data || { plan: 'free', status: 'active', usage: {} });
     }
 
