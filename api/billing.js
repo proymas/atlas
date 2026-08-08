@@ -13,6 +13,7 @@ const billingMode=()=>String(process.env.ATLAS_BILLING_MODE||'live').trim().toLo
 const isTestMode=()=>billingMode()==='test';
 const supabaseUrl=()=>String(process.env.SUPABASE_URL||process.env.NEXT_PUBLIC_SUPABASE_URL||'https://ntrnchrtnfjyrsagxxbo.supabase.co').trim().replace(/\/$/,'');
 const anonKey=()=>String(process.env.SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||process.env.SUPABASE_PUBLISHABLE_KEY||'').trim();
+const serviceKey=()=>String(process.env.SUPABASE_SERVICE_ROLE_KEY||'').trim();
 
 function appOrigin(){
   const configured=String(process.env.ATLAS_APP_ORIGIN||'').trim().replace(/\/$/,'');
@@ -52,17 +53,51 @@ async function stripe(path,body,cfg){
   return d;
 }
 
-async function plan(userId){const key=process.env.SUPABASE_SERVICE_ROLE_KEY,url=supabaseUrl();if(!key||!url)throw new Error('supabase_service_not_configured');const r=await fetch(`${url}/rest/v1/atlas_user_plans?user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`,{headers:{authorization:`Bearer ${key}`,apikey:key}}),rows=await r.json();return r.ok?rows?.[0]:null;}
-async function patch(userId,data){
-  const key=process.env.SUPABASE_SERVICE_ROLE_KEY,url=supabaseUrl();
+async function adminUser(userId){
+  const key=serviceKey(),url=supabaseUrl();
   if(!key||!url)throw new Error('supabase_service_not_configured');
-  const r=await fetch(`${url}/rest/v1/atlas_user_plans?user_id=eq.${encodeURIComponent(userId)}`,{method:'PATCH',headers:{authorization:`Bearer ${key}`,apikey:key,'content-type':'application/json',prefer:'return=minimal'},body:JSON.stringify({...data,updated_at:new Date().toISOString()})});
+  const r=await fetch(`${url}/auth/v1/admin/users/${encodeURIComponent(userId)}`,{headers:{authorization:`Bearer ${key}`,apikey:key}});
+  if(!r.ok)throw new Error(`supabase_admin_user_${r.status}`);
+  return r.json();
+}
+
+async function testPlan(userId){
+  const u=await adminUser(userId);
+  return u?.app_metadata?.atlas_test_billing||null;
+}
+
+async function patchTestPlan(userId,data){
+  const key=serviceKey(),url=supabaseUrl();
+  if(!key||!url)throw new Error('supabase_service_not_configured');
+  const current=await adminUser(userId);
+  const appMetadata={...(current?.app_metadata||{}),atlas_test_billing:{...data,updated_at:new Date().toISOString()}};
+  const r=await fetch(`${url}/auth/v1/admin/users/${encodeURIComponent(userId)}`,{
+    method:'PUT',
+    headers:{authorization:`Bearer ${key}`,apikey:key,'content-type':'application/json'},
+    body:JSON.stringify({app_metadata:appMetadata}),
+  });
   if(!r.ok){
     let detail='';
     try{detail=(await r.text()).slice(0,500);}catch{}
-    if(isTestMode())console.error('supabase_plan_patch_failed',{status:r.status,urlHost:new URL(url).host,detail});
-    throw new Error(isTestMode()?`plan_update_failed_${r.status}`:'plan_update_failed');
+    console.error('supabase_test_entitlement_update_failed',{status:r.status,urlHost:new URL(url).host,detail});
+    throw new Error(`test_entitlement_update_failed_${r.status}`);
   }
+}
+
+async function plan(userId){
+  if(isTestMode())return testPlan(userId);
+  const key=serviceKey(),url=supabaseUrl();
+  if(!key||!url)throw new Error('supabase_service_not_configured');
+  const r=await fetch(`${url}/rest/v1/atlas_user_plans?user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`,{headers:{authorization:`Bearer ${key}`,apikey:key}}),rows=await r.json();
+  return r.ok?rows?.[0]:null;
+}
+
+async function patch(userId,data){
+  if(isTestMode())return patchTestPlan(userId,data);
+  const key=serviceKey(),url=supabaseUrl();
+  if(!key||!url)throw new Error('supabase_service_not_configured');
+  const r=await fetch(`${url}/rest/v1/atlas_user_plans?user_id=eq.${encodeURIComponent(userId)}`,{method:'PATCH',headers:{authorization:`Bearer ${key}`,apikey:key,'content-type':'application/json',prefer:'return=minimal'},body:JSON.stringify({...data,updated_at:new Date().toISOString()})});
+  if(!r.ok)throw new Error('plan_update_failed');
 }
 
 function verify(payload,header,secret){
@@ -134,5 +169,3 @@ export default async function handler(req,res){
     return res.status(500).json({error:e?.message||'billing_failed'});
   }
 }
-
-// Deployment marker: refresh Preview environment variables for isolated Stripe TEST mode.
