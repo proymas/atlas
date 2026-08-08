@@ -1,8 +1,11 @@
 {
   "name": "atlas",
   "private": true,
-  "version": "3.4.2",
+  "version": "3.4.3",
   "type": "module",
+  "scripts": {
+    "check": "node scripts/architecture-smoke.mjs"
+  },
   "dependencies": {
     "@vercel/blob": "^2.6.1",
     "pdf-lib": "^1.17.1"
