@@ -3,9 +3,6 @@
   "functions": {
     "api/analyze-safe-v3.js": {
       "maxDuration": 60
-    },
-    "api/analyze.js": {
-      "maxDuration": 30
     }
   },
   "routes": [
@@ -20,10 +17,6 @@
     {
       "src": "/api/event",
       "dest": "/api/event.js"
-    },
-    {
-      "src": "/api/waitlist",
-      "dest": "/api/waitlist.js"
     },
     {
       "handle": "filesystem"
