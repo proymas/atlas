@@ -14,3 +14,4 @@ import './auth-cloud-isolation.js';
 import './header-fix.js';
 import './motion.js';
 import './language-switcher-motion.js';
+import './ux-polish.js';
