@@ -12,6 +12,10 @@ function bearer(req) {
   return value.toLowerCase().startsWith('bearer ') ? value : '';
 }
 
+function isClockSkew(data){
+  return String(data?.error || data?.message || '').toLowerCase().includes('jwt issued at future');
+}
+
 async function bridge(req, baseUrl, path = '', options = {}) {
   const authorization = bearer(req);
   if (!authorization) {
@@ -22,7 +26,9 @@ async function bridge(req, baseUrl, path = '', options = {}) {
 
   let response;
   let data = null;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  const retryDelays=[0,750,1500];
+  for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+    if(retryDelays[attempt]) await sleep(retryDelays[attempt]);
     response = await fetch(`${baseUrl}${path}`, {
       ...options,
       headers: {
@@ -38,12 +44,7 @@ async function bridge(req, baseUrl, path = '', options = {}) {
       try { data = JSON.parse(text); } catch { data = text; }
     }
 
-    const clockSkew = !response.ok && String(data?.error || '').toLowerCase().includes('jwt issued at future');
-    if (clockSkew && attempt === 0) {
-      await sleep(1200);
-      continue;
-    }
-    break;
+    if(response.ok || !isClockSkew(data)) break;
   }
 
   if (!response.ok) {
