@@ -12,10 +12,18 @@ async function request(options={}){
   const response=await fetch('/api/projects',{...options,headers:headers(options.headers||{})});
   if(!response.ok){
     const data=await response.json().catch(()=>({}));
-    throw new Error(data.detail||data.error||`cloud_${response.status}`);
+    const error=new Error(data.detail||data.error||`cloud_${response.status}`);
+    error.status=response.status;
+    throw error;
   }
   if(response.status===204)return null;
   return response.json().catch(()=>null);
+}
+
+function stamp(project){const value=Date.parse(project?.updatedAt||'');return Number.isFinite(value)?value:0;}
+function sameVersion(a,b){return Boolean(a?.id&&b?.id&&a.id===b.id&&stamp(a)===stamp(b));}
+async function inBatches(items,worker,size=4){
+  for(let i=0;i<items.length;i+=size)await Promise.all(items.slice(i,i+size).map(worker));
 }
 
 export function cloudReady(){return ready();}
@@ -35,14 +43,22 @@ export async function deleteCloudProject(clientId){
 
 export async function syncLocalProjects(projects=[]){
   if(!ready())return {synced:false,projects};
+  const local=Array.isArray(projects)?projects.filter(project=>project?.id):[];
   const cloud=await listCloudProjects();
+  const cloudById=new Map(cloud.filter(project=>project?.id).map(project=>[project.id,project]));
   const merged=new Map();
-  for(const project of [...cloud,...projects]){
+  for(const project of [...cloud,...local]){
     if(!project?.id)continue;
     const previous=merged.get(project.id);
-    if(!previous||new Date(project.updatedAt||0)>=new Date(previous.updatedAt||0))merged.set(project.id,project);
+    if(!previous||stamp(project)>=stamp(previous))merged.set(project.id,project);
   }
   const result=[...merged.values()];
-  await Promise.all(result.map(upsertCloudProject));
-  return {synced:true,projects:result};
+  const writes=result.filter(project=>{
+    const remote=cloudById.get(project.id);
+    if(!remote)return true;
+    if(sameVersion(project,remote))return false;
+    return stamp(project)>stamp(remote);
+  });
+  await inBatches(writes,upsertCloudProject,4);
+  return {synced:true,projects:result,writes:writes.length};
 }
