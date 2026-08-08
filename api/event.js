@@ -4,11 +4,13 @@ import crypto from 'node:crypto';
 const ALLOWED = new Set([
   'landing_view','validator_started','question_viewed','question_answered','questionnaire_completed',
   'report_generated','analysis_error','screening_blocked','restart_clicked','pdf_downloaded','report_shared',
-  'feedback_submitted','pro_waitlist_joined','locale_changed','experiment_step_completed'
+  'feedback_submitted','pro_waitlist_joined','locale_changed','experiment_step_completed',
+  'free_analysis_available','free_limit_reached','free_analysis_consumed','pro_upsell_viewed',
+  'continue_free_clicked','pro_waitlist_from_report'
 ]);
 
 function cleanObject(value = {}) {
-  const allowed = ['locale','step','total','durationMs','score','verdict','maturity','profile','mode','questionDimension','errorCode','rating','completed','experimentProgress'];
+  const allowed = ['locale','step','total','durationMs','score','verdict','maturity','profile','mode','questionDimension','errorCode','rating','completed','experimentProgress','source','tier','billing'];
   return Object.fromEntries(allowed.filter(key => value[key] !== undefined).map(key => [key, value[key]]));
 }
 
