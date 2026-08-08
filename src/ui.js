@@ -1,8 +1,22 @@
 import { byId, escapeHtml } from './dom.js';
 import { VIEW_IDS } from './config.js';
 
+let activeView='';
+
 export function showView(id) {
-  VIEW_IDS.forEach((viewId) => byId(viewId).classList.toggle('hidden', viewId !== id));
+  VIEW_IDS.forEach((viewId) => {
+    const view=byId(viewId);
+    const visible=viewId===id;
+    view.classList.toggle('hidden',!visible);
+    view.setAttribute('aria-hidden',visible?'false':'true');
+    if(!visible)view.classList.remove('view-enter');
+  });
+  const next=byId(id);
+  if(activeView!==id){
+    next.classList.remove('view-enter');
+    requestAnimationFrame(()=>next.classList.add('view-enter'));
+    activeView=id;
+  }
 }
 
 export function setProgress(value, label) {
