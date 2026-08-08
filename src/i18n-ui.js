@@ -7,6 +7,7 @@ import './workspace-rerender-hook.js';
 import './auth.js';
 import './entitlements.js';
 import './plan-gating.js';
+import './history-pdf-gating.js';
 import './auth-cloud-isolation.js';
 import './password-recovery.js';
 import './delete-account.js';
