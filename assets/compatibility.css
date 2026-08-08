@@ -11,12 +11,15 @@ img,svg,video,canvas{max-width:100%;height:auto}
 .container{padding-left:max(0px,var(--safe-left));padding-right:max(0px,var(--safe-right))}
 .site-header{top:0;padding-top:var(--safe-top)}
 .nav{min-width:0}.nav-actions{min-width:0}.brand{flex:0 0 auto}
-.language-switcher{display:flex;align-items:center;gap:3px;min-height:var(--tap);padding:3px;border:1px solid rgba(99,212,255,.22);border-radius:13px;background:linear-gradient(145deg,rgba(12,31,52,.88),rgba(5,13,25,.88));box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 8px 24px rgba(0,0,0,.16)}
-.language-switcher>span{color:rgba(155,173,197,.35);font-size:9px}
-.language-switcher button{min-width:var(--tap);min-height:38px;padding:7px 10px;border:1px solid rgba(132,180,240,.14);border-radius:9px;background:linear-gradient(180deg,rgba(18,42,69,.82),rgba(7,20,36,.9));color:#a9bdd4;font:inherit;font-size:12px;font-weight:850;letter-spacing:.06em;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.045);transition:color .18s,border-color .18s,background .18s,box-shadow .18s,transform .18s}
-.language-switcher button:hover,.language-switcher button:focus-visible{color:#f5fbff;border-color:rgba(99,212,255,.48);background:linear-gradient(180deg,rgba(26,64,99,.92),rgba(9,29,50,.94));box-shadow:0 0 0 3px rgba(91,201,255,.055),inset 0 1px 0 rgba(255,255,255,.07)}
-.language-switcher button[aria-pressed="true"],.language-switcher button.active{color:#07111f;border-color:rgba(126,220,255,.9);background:linear-gradient(135deg,#63d4ff,#8794ff);box-shadow:0 6px 18px rgba(74,166,255,.2)}
+
+/* Language control belongs to the Atlas visual system, not browser-default UI. */
+.language-switcher{display:flex;align-items:center;gap:4px;min-height:var(--tap);padding:4px;border:1px solid rgba(99,212,255,.24);border-radius:14px;background:linear-gradient(145deg,rgba(10,27,47,.96),rgba(4,13,25,.96));box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 10px 28px rgba(0,0,0,.18)}
+.language-switcher>span{color:rgba(155,173,197,.3);font-size:9px}
+.language-switcher button{appearance:none;-webkit-appearance:none;min-width:42px;min-height:36px;padding:7px 10px;border:1px solid rgba(132,180,240,.16)!important;border-radius:10px!important;background:linear-gradient(180deg,rgba(15,38,64,.92),rgba(6,19,35,.96))!important;color:#9fb5cf!important;font:inherit;font-size:11px;font-weight:900;letter-spacing:.08em;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.045)!important;transition:color .18s,border-color .18s,background .18s,box-shadow .18s,transform .18s}
+.language-switcher button:hover,.language-switcher button:focus-visible{color:#f5fbff!important;border-color:rgba(99,212,255,.5)!important;background:linear-gradient(180deg,rgba(23,61,96,.96),rgba(8,29,51,.98))!important;box-shadow:0 0 0 3px rgba(91,201,255,.055),inset 0 1px 0 rgba(255,255,255,.075)!important}
+.language-switcher button[aria-pressed="true"]{color:#06101d!important;border-color:rgba(129,222,255,.94)!important;background:linear-gradient(135deg,#63d4ff 0%,#75bfff 48%,#8994ff 100%)!important;box-shadow:0 7px 22px rgba(74,166,255,.24),inset 0 1px 0 rgba(255,255,255,.38)!important}
 .language-switcher button:active{transform:scale(.97)}
+
 .button,.secondary-button,.text-button{min-height:var(--tap)}
 #validator,#como-funciona,#ejemplo,#principios{scroll-margin-top:92px}
 .app-card{min-width:0}.report-header>div,.report-grid article,.atlas-33-card{min-width:0}
@@ -29,26 +32,60 @@ img,svg,video,canvas{max-width:100%;height:auto}
 .atlas-auth-modal,.vc-modal,.experiment-modal,[class*="modal"]{padding-top:max(12px,var(--safe-top));padding-right:max(12px,var(--safe-right));padding-bottom:max(12px,var(--safe-bottom));padding-left:max(12px,var(--safe-left));max-height:100vh;max-height:100dvh;overscroll-behavior:contain}
 .atlas-auth-panel,.vc-panel,.experiment-panel,[class*="modal"]>[class*="panel"]{max-height:calc(100vh - 24px - var(--safe-top) - var(--safe-bottom));max-height:calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .atlas-auth-close,.vc-close,.experiment-close{min-width:var(--tap);min-height:var(--tap);display:inline-grid;place-items:center}
+
 @media(max-width:900px){html{scroll-padding-top:78px}#validator,#como-funciona,#ejemplo,#principios{scroll-margin-top:78px}.section{padding:72px 0}.hero-premium{padding-bottom:58px}.validator-layout{gap:18px}.validator-intro{padding-bottom:8px}.app-card{min-height:520px}}
+
 @media(max-width:700px){
-  html{scroll-padding-top:126px}#validator,#como-funciona,#ejemplo,#principios{scroll-margin-top:126px}.container{width:min(100% - 28px,1160px)}.site-header{background:rgba(4,8,17,.97)}
-  .nav{min-height:auto;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"brand brand" "language account" "projects projects";align-items:center;gap:9px 12px;padding-top:12px;padding-bottom:12px}
-  .brand{grid-area:brand;letter-spacing:.13em;font-size:14px;align-self:center}.brand span{margin-left:5px;padding:4px 6px}.nav nav{display:none}
-  .nav-actions{grid-column:1/-1;grid-row:2/4;width:100%;margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"language account" "projects projects";align-items:center;gap:9px 10px;min-width:0}
-  .language-switcher{grid-area:language;justify-self:start;flex:0 0 auto;gap:3px;padding:3px;border-radius:13px}.language-switcher span{display:none}.language-switcher button{min-width:44px;min-height:40px;padding:6px 10px}
-  .nav-actions .button-small{grid-area:projects;justify-self:start;min-height:42px;padding:9px 15px;white-space:nowrap;border:1px solid rgba(99,212,255,.38);border-radius:12px;background:linear-gradient(145deg,rgba(12,35,58,.92),rgba(5,17,31,.94));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
-  .atlas-account-button{grid-area:account;justify-self:end;margin-left:0;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-color:rgba(132,180,240,.24)!important;background:linear-gradient(145deg,rgba(13,29,51,.78),rgba(5,13,25,.76))!important}
+  html{scroll-padding-top:118px}#validator,#como-funciona,#ejemplo,#principios{scroll-margin-top:118px}
+  .container{width:min(100% - 28px,1160px)}
+  .site-header{background:rgba(4,8,17,.97);border-bottom-color:rgba(99,212,255,.1)}
+
+  /* Dynamic nav children participate directly in one explicit two-row grid. */
+  .site-header .nav{min-height:auto;display:grid;grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"brand plan account" "language projects projects";align-items:center;column-gap:10px;row-gap:8px;padding-top:10px;padding-bottom:11px}
+  .site-header .brand{grid-area:brand;letter-spacing:.13em;font-size:14px;align-self:center;white-space:nowrap}
+  .site-header .brand span{margin-left:5px;padding:4px 6px}
+  .site-header .nav nav{display:none}
+  .site-header .nav-actions{display:contents!important}
+
+  .site-header .atlas-plan-badge{grid-area:plan;justify-self:start;align-self:center;height:26px;min-width:42px;padding:0 8px;border-color:rgba(99,212,255,.34);background:linear-gradient(145deg,rgba(10,34,57,.88),rgba(5,18,33,.94));box-shadow:inset 0 1px 0 rgba(255,255,255,.045)}
+  .site-header .language-switcher{grid-area:language;justify-self:start;align-self:center;min-height:42px}
+  .site-header .language-switcher>span{display:none}
+  .site-header .atlas-account-button{grid-area:account;justify-self:end;align-self:center;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:8px 12px!important;border-color:rgba(132,180,240,.24)!important;background:linear-gradient(145deg,rgba(13,29,51,.82),rgba(5,13,25,.82))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+
+  /* Header CTA is redundant on mobile; the hero CTA is immediately below. */
+  .site-header .nav-actions>.button-small:not(.workspace-open){display:none!important}
+
+  .site-header .nav .workspace-open{grid-area:projects;justify-self:start;align-self:center;display:inline-flex!important;width:auto!important;min-width:104px!important;height:42px!important;padding:0 14px!important;border:1px solid rgba(99,212,255,.42)!important;border-radius:13px!important;background:linear-gradient(145deg,rgba(12,38,64,.94),rgba(5,19,35,.96))!important;color:var(--text)!important;font-size:11px!important;font-weight:900!important;letter-spacing:.045em!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 8px 24px rgba(0,0,0,.13)!important}
+  .site-header .nav .workspace-open:after{content:none!important}
+
   .hero-premium{padding-top:48px;gap:30px}.hero-premium h1{font-size:clamp(44px,13.5vw,66px);line-height:.94}.hero-copy{font-size:17px;line-height:1.58}.hero-actions-row{width:100%;gap:12px}.secondary-link{justify-content:center;min-height:var(--tap)}
   .hero-proof{padding:22px;border-radius:22px}.hero-proof h2{font-size:clamp(28px,9vw,38px)}.proof-metrics{gap:10px}.proof-metrics>span{min-width:0}.section{padding:62px 0}.section-heading h2,.validator-intro h2{font-size:clamp(35px,11vw,50px)}
   .manifesto-layout{gap:28px}.manifesto-layout h2{font-size:clamp(42px,13vw,62px)}.manifesto-copy{font-size:18px}.manifesto-copy strong{font-size:21px}.report-preview{margin-top:30px;border-radius:22px}.report-preview>header{padding:22px;gap:16px}.preview-summary,.preview-columns section{padding:20px 22px}
   .validator-section{padding-top:54px}.validator-intro h2{margin-bottom:15px}.app-card{padding:18px;min-height:0;border-radius:20px}.progress{margin-bottom:24px}label,#question-title{font-size:clamp(27px,8.5vw,38px)}textarea{min-height:142px;padding:14px}.loading-view{min-height:330px}.spinner{width:58px;height:58px}
   .report-header{gap:16px}.report-header h3{font-size:clamp(27px,8vw,34px)}.report-header>div:first-child{width:104px;height:104px;font-size:37px}.report-grid{gap:10px}.report-grid article{padding:14px}.report-actions{gap:8px}.report-actions .button,.report-actions .secondary-button{width:100%}.footer-premium{padding-bottom:max(24px,var(--safe-bottom))}.atlas-auth-panel,.vc-panel,.experiment-panel{width:100%;border-radius:18px}
 }
+
 @media(max-width:430px){
-  .container{width:min(100% - 22px,1160px)}.nav{gap:8px 9px;padding-top:10px;padding-bottom:11px}.brand span{display:none}.nav-actions{gap:8px}.language-switcher button{min-width:42px;padding:5px 8px;font-size:11px}.nav-actions .button-small{padding:9px 13px;font-size:11px}.atlas-account-button{max-width:min(58vw,230px);padding:8px 11px!important;font-size:11px!important}
+  .container{width:min(100% - 22px,1160px)}
+  .site-header .nav{grid-template-columns:auto auto minmax(0,1fr);column-gap:8px;row-gap:7px;padding-top:9px;padding-bottom:10px}
+  .site-header .brand span{display:none}
+  .site-header .atlas-plan-badge{min-width:40px;height:25px;padding:0 7px;font-size:9px}
+  .site-header .language-switcher{padding:3px;border-radius:12px;min-height:40px}
+  .site-header .language-switcher button{min-width:39px;min-height:34px;padding:5px 8px;font-size:10px}
+  .site-header .nav .workspace-open{min-width:96px!important;height:40px!important;padding:0 12px!important;font-size:10px!important}
+  .site-header .atlas-account-button{max-width:43vw;padding:7px 10px!important;font-size:10.5px!important}
+
   .hero-premium{padding-top:42px}.hero-premium h1{font-size:clamp(39px,13.4vw,54px);letter-spacing:-.055em}.hero-copy{font-size:16px}.proof-topline,.proof-metrics{gap:8px}.proof-metrics{font-size:11px}.proof-metrics strong{font-size:20px}.trust-grid{gap:13px;padding:18px 0}.trust-grid p{font-size:13px}.process-grid{margin-top:28px}.process-grid article{padding:22px}.preview-score strong{font-size:42px}.report-preview h3{font-size:25px}.app-card{padding:15px}.progress-row{gap:10px}.progress-row #step-label{max-width:75%}.report-header>div:first-child{width:96px;height:96px}.report-grid,.report-actions{grid-template-columns:minmax(0,1fr)}.experiment-meta{grid-template-columns:minmax(0,1fr)!important}
 }
-@media(max-width:350px){.nav-actions{grid-template-columns:1fr}.language-switcher{grid-area:auto;justify-self:start}.atlas-account-button{grid-area:auto;justify-self:start;max-width:100%}.nav-actions .button-small{grid-area:auto;justify-self:start}.hero-premium{padding-top:38px}}
+
+@media(max-width:350px){
+  html{scroll-padding-top:150px}
+  .site-header .nav{grid-template-columns:auto 1fr;grid-template-areas:"brand plan" "language projects" "account account"}
+  .site-header .atlas-plan-badge{justify-self:end}
+  .site-header .atlas-account-button{justify-self:stretch;max-width:none;text-align:center}
+  .hero-premium{padding-top:38px}
+}
+
 @media(max-height:520px) and (orientation:landscape){.site-header{position:relative;padding-top:0}.hero-premium{padding-top:42px;min-height:auto}.section{padding:48px 0}.validator-intro{position:static}.loading-view{min-height:220px}.atlas-auth-modal,.vc-modal,.experiment-modal,[class*="modal"]{place-items:start center;overflow-y:auto}}
 @media(hover:none),(pointer:coarse){button,.button,.secondary-button,.text-button,.language-switcher button,.atlas-account-button,.workspace-actions button{min-height:var(--tap)}.report-grid article:hover,.atlas-33-card:hover{transform:none}.language-switcher button:hover{transform:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}.view-enter{animation:none}}
