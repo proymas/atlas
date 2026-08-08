@@ -73,7 +73,7 @@ async function webhook(req,res,payload,cfg){
     const price=o.items?.data?.[0]?.price?.id||null,pro=['active','trialing'].includes(o.status);
     await patch(o.metadata.atlas_user_id,{
       plan:pro?'pro':'free',
-      status:pro?'active':o.status||'inactive',
+      status:pro?'active':'inactive',
       source:cfg.mode==='test'?'stripe_test':'stripe',
       stripe_customer_id:o.customer||null,
       stripe_subscription_id:o.id||null,
