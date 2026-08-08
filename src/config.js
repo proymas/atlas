@@ -1,4 +1,4 @@
-export const APP_VERSION = '';
+export const APP_VERSION = 'current';
 
 export const VIEW_IDS = ['start-view', 'question-view', 'loading-view', 'report-view'];
 
