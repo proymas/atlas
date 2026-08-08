@@ -4,9 +4,9 @@ import crypto from 'node:crypto';
 const ALLOWED = new Set([
   'landing_view','validator_started','question_viewed','question_answered','questionnaire_completed',
   'report_generated','analysis_error','screening_blocked','restart_clicked','pdf_downloaded','report_shared',
-  'feedback_submitted','pro_waitlist_joined','locale_changed','experiment_step_completed',
+  'feedback_submitted','locale_changed','experiment_step_completed',
   'free_analysis_available','free_limit_reached','free_analysis_consumed','pro_upsell_viewed',
-  'continue_free_clicked','pro_waitlist_from_report'
+  'continue_free_clicked'
 ]);
 
 function cleanObject(value = {}) {
@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     id: crypto.randomUUID(),
     name: body.name,
     sessionId: sessionId(req, body.sessionId),
-    version: String(body.version || '3.4'),
+    version: String(body.version || 'current'),
     locale: body.locale === 'en' ? 'en' : 'es',
     country: req.headers['x-vercel-ip-country'] || 'unknown',
     createdAt: new Date().toISOString(),
