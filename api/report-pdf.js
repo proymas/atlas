@@ -1,10 +1,13 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
+const ENTITLEMENTS_BRIDGE_URL='https://ntrnchrtnfjyrsagxxbo.supabase.co/functions/v1/atlas-entitlements';
 const A4 = [595.28, 841.89];
 const C = {navy:rgb(.035,.075,.13),blue:rgb(.12,.63,.92),violet:rgb(.37,.43,.94),green:rgb(.16,.68,.43),ink:rgb(.08,.11,.16),muted:rgb(.38,.43,.51),line:rgb(.86,.89,.93),soft:rgb(.96,.975,.99),white:rgb(1,1,1)};
 const clean=value=>String(value??'').replace(/[\u2013\u2014]/g,'-').replace(/[\u2022]/g,'*').trim();
 const list=value=>Array.isArray(value)?value.map(clean).filter(Boolean):[];
 const number=value=>Number.isFinite(Number(value))?Math.max(0,Math.min(100,Math.round(Number(value)))):0;
+function bearer(req){const value=String(req.headers.authorization||'');return value.toLowerCase().startsWith('bearer ')?value:'';}
+async function resolveTier(req,requested){if(requested!=='pro')return'free';const authorization=bearer(req);if(!authorization)return'free';try{const response=await fetch(ENTITLEMENTS_BRIDGE_URL,{method:'GET',headers:{authorization,'content-type':'application/json'}});if(!response.ok)return'free';const data=await response.json();return data?.plan==='pro'&&data?.status!=='inactive'?'pro':'free';}catch{return'free';}}
 function wrap(text,font,size,maxWidth){const words=clean(text).split(/\s+/).filter(Boolean),lines=[];let line='';for(const word of words){const candidate=line?`${line} ${word}`:word;if(font.widthOfTextAtSize(candidate,size)<=maxWidth)line=candidate;else{if(line)lines.push(line);line=word;}}if(line)lines.push(line);return lines.length?lines:[''];}
 function drawLines(page,text,{x,y,width,font,size=10,color=C.ink,lineHeight=14,maxLines=99}){const lines=wrap(text,font,size,width).slice(0,maxLines);lines.forEach((line,index)=>page.drawText(line,{x,y:y-index*lineHeight,size,font,color}));return y-lines.length*lineHeight;}
 function header(page,fonts,locale,reportId,pageNo){page.drawText('ATLAS',{x:40,y:807,size:13,font:fonts.bold,color:C.navy});page.drawText(locale==='en'?'VALIDATION REPORT':'INFORME DE VALIDACION',{x:98,y:807,size:8,font:fonts.bold,color:C.blue});page.drawText(`${reportId}  |  ${pageNo}`,{x:450,y:807,size:8,font:fonts.regular,color:C.muted});page.drawLine({start:{x:40,y:795},end:{x:555,y:795},thickness:.8,color:C.line});}
@@ -15,7 +18,7 @@ function parseStep(step,index,locale){const text=clean(step).replace(/^D[ií]a\s
 export default async function handler(req,res){
  if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
  try{
-  const body=req.body||{},locale=body.locale==='en'?'en':'es',tier=body.tier==='pro'?'pro':'free',report=body.report||{},experiment=report.experiment||report.validationExperiment||{},breakdown=report.scoreBreakdown||{};
+  const body=req.body||{},locale=body.locale==='en'?'en':'es',tier=await resolveTier(req,body.tier),report=body.report||{},experiment=report.experiment||report.validationExperiment||{},breakdown=report.scoreBreakdown||{};
   const pdf=await PDFDocument.create(),fonts={regular:await pdf.embedFont(StandardFonts.Helvetica),bold:await pdf.embedFont(StandardFonts.HelveticaBold)};
   const reportId=`ATLAS-${new Date().toISOString().slice(0,10).replaceAll('-','')}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
   const date=new Intl.DateTimeFormat(locale==='en'?'en-GB':'es-ES',{dateStyle:'medium'}).format(new Date()),score=number(report.score),verdict=clean(report.verdict||(locale==='en'?'UNASSESSED':'SIN EVALUAR')),summary=clean(report.executiveSummary||report.summary||''),idea=clean(body.idea||(locale==='en'?'Business idea':'Idea de negocio'));
