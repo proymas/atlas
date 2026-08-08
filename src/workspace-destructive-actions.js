@@ -19,9 +19,8 @@ function toast(message){
 function syncProject(project){
   if(cloudReady())upsertCloudProject(project).catch(error=>console.warn('atlas_cloud_save_failed',error));
 }
-function refreshEvidenceCount(card){
-  const section=card?.closest('.workspace-section');
-  if(!section)return;
+function refreshEvidenceCount(section){
+  if(!(section instanceof HTMLElement))return;
   const list=section.querySelector('.workspace-evidence-list');
   const remaining=list?.querySelectorAll('.workspace-evidence-card').length||0;
   const header=section.querySelector('.workspace-section-head>div>p:last-child');
@@ -37,12 +36,10 @@ function refreshEvidenceCount(card){
 async function deleteEvidence(button){
   const card=button.closest('.workspace-evidence-card');
   const section=button.closest('.workspace-section');
-  const projectId=section?.querySelector('[data-project-id]')?.dataset.projectId||document.querySelector('.workspace-card[data-project-id]')?.dataset.projectId||'';
   const evidenceId=card?.dataset.evidenceId||'';
-  if(!card||!evidenceId)return false;
+  if(!card||!section||!evidenceId)return false;
   const projects=read();
-  let project=projects.find(item=>Array.isArray(item.evidence)&&item.evidence.some(entry=>entry.id===evidenceId));
-  if(projectId)project=projects.find(item=>item.id===projectId)||project;
+  const project=projects.find(item=>Array.isArray(item.evidence)&&item.evidence.some(entry=>entry.id===evidenceId));
   if(!project)return false;
   const accepted=await ask(english()?{
     title:'Delete this evidence?',message:'This evidence will be removed from the project. This action cannot be undone.',confirm:'Delete evidence'
@@ -59,7 +56,7 @@ async function deleteEvidence(button){
   write(projects);
   syncProject(project);
   card.remove();
-  refreshEvidenceCount(card);
+  refreshEvidenceCount(section);
   toast(english()?'Evidence deleted':'Evidencia eliminada');
   track('pro_evidence_deleted',{projectId:project.id,category:item?.category||'unknown'});
   window.dispatchEvent(new CustomEvent('atlas:workspace-rendered'));
@@ -95,18 +92,16 @@ async function deleteProject(button){
   return true;
 }
 
-async function intercept(event){
+function intercept(event){
   const button=event.target instanceof Element?event.target.closest('button'):null;
   if(!(button instanceof HTMLButtonElement))return;
-  let handled=false;
   if(button.matches('[data-delete-evidence]')){
     event.preventDefault();event.stopImmediatePropagation();
-    handled=await deleteEvidence(button);
+    void deleteEvidence(button);
   }else if(button.matches('.workspace-card [data-action="delete"]')){
     event.preventDefault();event.stopImmediatePropagation();
-    handled=await deleteProject(button);
+    void deleteProject(button);
   }
-  return handled;
 }
 
 document.addEventListener('click',intercept,true);
