@@ -10,7 +10,12 @@ textarea{overscroll-behavior:contain}
 img,svg,video,canvas{max-width:100%;height:auto}
 .container{padding-left:max(0px,var(--safe-left));padding-right:max(0px,var(--safe-right))}
 .site-header{top:0;padding-top:var(--safe-top)}
-.nav{min-width:0}.nav-actions{min-width:0}.brand{flex:0 0 auto}.language-switcher{display:flex;align-items:center;min-height:var(--tap)}.language-switcher button{min-width:var(--tap);min-height:var(--tap);border-radius:10px}
+.nav{min-width:0}.nav-actions{min-width:0}.brand{flex:0 0 auto}
+.language-switcher{display:flex;align-items:center;gap:4px;min-height:var(--tap);padding:3px;border:1px solid rgba(132,180,240,.18);border-radius:12px;background:linear-gradient(145deg,rgba(13,29,51,.78),rgba(5,13,25,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.language-switcher>span{color:rgba(155,173,197,.42);font-size:10px}
+.language-switcher button{min-width:var(--tap);min-height:38px;border:1px solid transparent;border-radius:9px;background:rgba(7,19,33,.72);color:var(--muted);font:inherit;font-size:12px;font-weight:850;letter-spacing:.04em;cursor:pointer;transition:color .18s,border-color .18s,background .18s,box-shadow .18s,transform .18s}
+.language-switcher button:hover,.language-switcher button:focus-visible{color:var(--text);border-color:rgba(91,201,255,.32);background:rgba(91,201,255,.09);box-shadow:0 0 0 3px rgba(91,201,255,.045)}
+.language-switcher button:active{transform:scale(.97)}
 .button,.secondary-button,.text-button{min-height:var(--tap)}
 #validator,#como-funciona,#ejemplo,#principios{scroll-margin-top:92px}
 .app-card{min-width:0}.report-header>div,.report-grid article,.atlas-33-card{min-width:0}
@@ -39,12 +44,18 @@ img,svg,video,canvas{max-width:100%;height:auto}
 }
 
 @media(max-width:700px){
+  html{scroll-padding-top:132px}
+  #validator,#como-funciona,#ejemplo,#principios{scroll-margin-top:132px}
   .container{width:min(100% - 28px,1160px)}
-  .site-header{background:rgba(4,8,17,.94)}
-  .nav{min-height:62px;gap:10px}
-  .brand{letter-spacing:.13em;font-size:14px}.brand span{margin-left:5px;padding:4px 6px}
-  .nav-actions{margin-left:auto;gap:4px}.language-switcher span{display:none}.language-switcher button{padding:7px 8px}
-  .hero-premium{padding-top:68px;gap:30px}.hero-premium h1{font-size:clamp(44px,13.5vw,66px);line-height:.94}.hero-copy{font-size:17px;line-height:1.58}
+  .site-header{background:rgba(4,8,17,.96)}
+  .nav{min-height:auto;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px 12px;padding-top:11px;padding-bottom:11px}
+  .brand{grid-column:1;grid-row:1;letter-spacing:.13em;font-size:14px;align-self:center}.brand span{margin-left:5px;padding:4px 6px}
+  .nav nav{display:none}
+  .nav-actions{grid-column:1/-1;grid-row:2;width:100%;margin:0;display:flex;align-items:center;gap:8px;min-width:0}
+  .language-switcher{flex:0 0 auto;gap:3px;padding:3px;border-radius:12px}.language-switcher span{display:none}.language-switcher button{min-width:42px;min-height:38px;padding:6px 9px}
+  .nav-actions .button-small{flex:0 0 auto;padding:10px 13px;white-space:nowrap}
+  .atlas-account-button{margin-left:auto;min-width:0;max-width:min(42vw,190px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-color:rgba(132,180,240,.24)!important;background:linear-gradient(145deg,rgba(13,29,51,.78),rgba(5,13,25,.76))!important}
+  .hero-premium{padding-top:58px;gap:30px}.hero-premium h1{font-size:clamp(44px,13.5vw,66px);line-height:.94}.hero-copy{font-size:17px;line-height:1.58}
   .hero-actions-row{width:100%;gap:12px}.secondary-link{justify-content:center;min-height:var(--tap)}
   .hero-proof{padding:22px;border-radius:22px}.hero-proof h2{font-size:clamp(28px,9vw,38px)}.proof-metrics{gap:10px}.proof-metrics>span{min-width:0}
   .section{padding:62px 0}.section-heading h2,.validator-intro h2{font-size:clamp(35px,11vw,50px)}
@@ -61,8 +72,9 @@ img,svg,video,canvas{max-width:100%;height:auto}
 
 @media(max-width:430px){
   .container{width:min(100% - 22px,1160px)}
-  .nav{gap:6px}.brand span{display:none}.language-switcher button{min-width:40px}.nav-actions .button-small{display:none}
-  .hero-premium{padding-top:54px}.hero-premium h1{font-size:clamp(39px,13.4vw,54px);letter-spacing:-.055em}.hero-copy{font-size:16px}
+  .nav{gap:8px 9px;padding-top:10px;padding-bottom:10px}.brand span{display:none}
+  .nav-actions{gap:6px}.language-switcher button{min-width:39px;padding:5px 7px;font-size:11px}.nav-actions .button-small{padding:9px 11px;font-size:11px}.atlas-account-button{max-width:38vw;padding:8px 10px!important;font-size:11px!important}
+  .hero-premium{padding-top:48px}.hero-premium h1{font-size:clamp(39px,13.4vw,54px);letter-spacing:-.055em}.hero-copy{font-size:16px}
   .proof-topline,.proof-metrics{gap:8px}.proof-metrics{font-size:11px}.proof-metrics strong{font-size:20px}
   .trust-grid{gap:13px;padding:18px 0}.trust-grid p{font-size:13px}
   .process-grid{margin-top:28px}.process-grid article{padding:22px}
@@ -70,6 +82,10 @@ img,svg,video,canvas{max-width:100%;height:auto}
   .app-card{padding:15px}.progress-row{gap:10px}.progress-row #step-label{max-width:75%}
   .report-header>div:first-child{width:96px;height:96px}.report-grid,.report-actions{grid-template-columns:minmax(0,1fr)}
   .experiment-meta{grid-template-columns:minmax(0,1fr)!important}
+}
+
+@media(max-width:350px){
+  .nav-actions .button-small{display:none}.atlas-account-button{max-width:44vw}.language-switcher button{min-width:38px}
 }
 
 /* Short landscape phones: don't let overlays or the sticky header consume the viewport. */
@@ -81,6 +97,7 @@ img,svg,video,canvas{max-width:100%;height:auto}
 @media(hover:none),(pointer:coarse){
   button,.button,.secondary-button,.text-button,.language-switcher button,.atlas-account-button,.workspace-actions button{min-height:var(--tap)}
   .report-grid article:hover,.atlas-33-card:hover{transform:none}
+  .language-switcher button:hover{transform:none}
 }
 
 @media(prefers-reduced-motion:reduce){
