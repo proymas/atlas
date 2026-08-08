@@ -3,9 +3,6 @@
   "private": true,
   "version": "3.4.2",
   "type": "module",
-  "scripts": {
-    "postinstall": "node scripts/cancel-test-subscription.mjs"
-  },
   "dependencies": {
     "@vercel/blob": "^2.6.1",
     "pdf-lib": "^1.17.1"
