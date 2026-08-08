@@ -1,19 +1,65 @@
 import { getLocale } from './i18n.js';
 
 const SESSION_KEY='atlas-auth-session-v1';
+const REFRESH_EARLY_MS=5*60*1000;
+const MIN_REFRESH_DELAY_MS=60*1000;
+const FALLBACK_REFRESH_MS=45*60*1000;
 let config={enabled:false,url:'',anonKey:''};
 let session=readSession();
 let busy=false;
+let refreshTimer=0;
+let refreshPromise=null;
 
 const copy=()=>getLocale()==='en'?{account:'Account',title:'Atlas account',subtitle:'Sign in to sync your projects securely across devices.',guest:'Guest mode',guestText:'Your projects remain stored only in this browser.',login:'Sign in',register:'Create account',recover:'Recover password',logout:'Sign out',email:'Email',password:'Password',name:'Name',submitLogin:'Sign in',submitRegister:'Create account',submitRecover:'Send recovery email',close:'Close',back:'Back',working:'Please wait…',notReady:'Accounts are being prepared. Guest mode remains fully available.',signedIn:'Signed in as',checkEmail:'Check your email to confirm the account.',recoverySent:'Recovery email sent.',invalid:'Check the information and try again.',passwordHint:'At least 8 characters.',continueGuest:'Continue as guest'}:{account:'Cuenta',title:'Cuenta Atlas',subtitle:'Inicia sesión para sincronizar tus proyectos de forma segura entre dispositivos.',guest:'Modo invitado',guestText:'Tus proyectos permanecen guardados únicamente en este navegador.',login:'Iniciar sesión',register:'Crear cuenta',recover:'Recuperar contraseña',logout:'Cerrar sesión',email:'Correo electrónico',password:'Contraseña',name:'Nombre',submitLogin:'Entrar',submitRegister:'Crear cuenta',submitRecover:'Enviar recuperación',close:'Cerrar',back:'Volver',working:'Espera…',notReady:'Las cuentas se están preparando. El modo invitado sigue disponible por completo.',signedIn:'Sesión iniciada como',checkEmail:'Revisa tu correo para confirmar la cuenta.',recoverySent:'Correo de recuperación enviado.',invalid:'Revisa los datos e inténtalo de nuevo.',passwordHint:'Mínimo 8 caracteres.',continueGuest:'Continuar como invitado'};
+
 function readSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch{return null;}}
-function saveSession(value){session=value||null;if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY);window.dispatchEvent(new CustomEvent('atlas:auth',{detail:{session}}));}
+function withExpiry(value){if(!value)return null;const next={...value};if(!Number(next.expires_at)&&Number(next.expires_in)>0)next.expires_at=Math.floor(Date.now()/1000)+Number(next.expires_in);return next;}
+function scheduleRefresh(){
+  clearTimeout(refreshTimer);
+  refreshTimer=0;
+  if(!config.enabled||!session?.refresh_token)return;
+  const expiresAt=Number(session.expires_at||0)*1000;
+  const delay=expiresAt>0?Math.max(MIN_REFRESH_DELAY_MS,expiresAt-Date.now()-REFRESH_EARLY_MS):FALLBACK_REFRESH_MS;
+  refreshTimer=setTimeout(()=>refreshSession({reason:'scheduled'}),delay);
+}
+function saveSession(value){
+  session=withExpiry(value);
+  if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY);
+  scheduleRefresh();
+  window.dispatchEvent(new CustomEvent('atlas:auth',{detail:{session}}));
+}
 function esc(value){return String(value??'').replace(/[&<>'\"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[ch]));}
 function authHeaders(token=''){return{'content-type':'application/json','apikey':config.anonKey,'authorization':`Bearer ${token||config.anonKey}`};}
-async function request(path,options={}){const response=await fetch(`${config.url}${path}`,{...options,headers:{...authHeaders(options.token),...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data?.msg||data?.error_description||data?.error||copy().invalid);return data;}
-async function loadConfig(){try{const response=await fetch('/api/auth-config',{cache:'no-store'});config=await response.json();}catch{config={enabled:false,url:'',anonKey:''};}renderButton();}
-async function refreshSession(){if(!config.enabled||!session?.refresh_token)return;try{const data=await request('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:session.refresh_token})});saveSession(data);}catch{saveSession(null);}}
-function cleanAuthUrl(){history.replaceState({},document.title,location.pathname);}
+async function request(path,options={}){
+  const response=await fetch(`${config.url}${path}`,{...options,headers:{...authHeaders(options.token),...(options.headers||{})}});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok){const error=new Error(data?.msg||data?.error_description||data?.error||copy().invalid);error.status=response.status;error.code=data?.error_code||data?.code||data?.error||'';throw error;}
+  return data;
+}
+async function loadConfig(){try{const response=await fetch('/api/auth-config',{cache:'no-store'});config=await response.json();}catch{config={enabled:false,url:'',anonKey:''};}renderButton();scheduleRefresh();}
+async function refreshSession({reason='manual'}={}){
+  if(refreshPromise)return refreshPromise;
+  if(!config.enabled||!session?.refresh_token)return session;
+  const refreshToken=session.refresh_token;
+  refreshPromise=(async()=>{
+    try{
+      const data=await request('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:refreshToken})});
+      saveSession(data);
+      return session;
+    }catch(error){
+      // Invalid/expired refresh credentials are terminal. Network and provider 5xx
+      // failures are transient: preserve the local session and retry later instead
+      // of unexpectedly logging the user out.
+      if(error?.status===400||error?.status===401||error?.status===403){saveSession(null);return null;}
+      clearTimeout(refreshTimer);
+      refreshTimer=setTimeout(()=>refreshSession({reason:'retry'}),5*60*1000);
+      console.warn('atlas_auth_refresh_deferred',{reason,status:error?.status||0});
+      return session;
+    }finally{refreshPromise=null;}
+  })();
+  return refreshPromise;
+}
+function cleanAuthUrl(){history.replaceState({},document.title,`${location.pathname}${location.search}`);}
 async function consumeAuthCallback(){
   if(!config.enabled)return false;
   const hash=new URLSearchParams(location.hash.replace(/^#/,''));
@@ -24,7 +70,7 @@ async function consumeAuthCallback(){
   if(accessToken&&refreshToken){
     try{
       const user=await request('/auth/v1/user',{method:'GET',token:accessToken});
-      saveSession({access_token:accessToken,refresh_token:refreshToken,expires_in:expiresIn,token_type:tokenType,user});
+      saveSession({access_token:accessToken,refresh_token:refreshToken,expires_in:expiresIn,expires_at:expiresIn?Math.floor(Date.now()/1000)+expiresIn:undefined,token_type:tokenType,user});
       cleanAuthUrl();
       return true;
     }catch{}
@@ -40,6 +86,9 @@ function shell(){const c=copy(),root=modal();root.querySelector('[data-auth-titl
 function renderHome(){const c=copy(),body=shell();if(session?.user){body.innerHTML=`<div class="atlas-auth-card"><strong>${esc(c.signedIn)}</strong><p>${esc(session.user.email||'')}</p></div><button class="atlas-auth-submit" data-auth-logout>${esc(c.logout)}</button>`;body.querySelector('[data-auth-logout]').addEventListener('click',async()=>{busy=true;try{if(config.enabled&&session?.access_token)await request('/auth/v1/logout',{method:'POST',token:session.access_token});}catch{}saveSession(null);busy=false;renderButton();renderHome();});return;}body.innerHTML=`<div class="atlas-auth-card"><strong>${esc(c.guest)}</strong><p>${esc(config.enabled?c.guestText:c.notReady)}</p></div>${config.enabled?`<div class="atlas-auth-actions"><button class="atlas-auth-link" data-mode="login">${esc(c.login)}</button><button class="atlas-auth-link" data-mode="register">${esc(c.register)}</button></div><button class="atlas-auth-link" data-mode="recover">${esc(c.recover)}</button>`:''}<button class="atlas-auth-submit" data-auth-close>${esc(c.continueGuest)}</button>`;body.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>renderForm(button.dataset.mode)));}
 function renderForm(mode){const c=copy(),body=shell();const register=mode==='register',recover=mode==='recover';body.innerHTML=`<button class="atlas-auth-link" data-back type="button">← ${esc(c.back)}</button><form class="atlas-auth-form" data-auth-form>${register?`<label>${esc(c.name)}<input name="name" autocomplete="name" maxlength="80"></label>`:''}<label>${esc(c.email)}<input name="email" type="email" autocomplete="email" required></label>${recover?'':`<label>${esc(c.password)}<input name="password" type="password" minlength="8" autocomplete="${register?'new-password':'current-password'}" required><small>${esc(c.passwordHint)}</small></label>`}<div class="atlas-auth-message" data-auth-message></div><button class="atlas-auth-submit" type="submit">${esc(recover?c.submitRecover:register?c.submitRegister:c.submitLogin)}</button></form>`;body.querySelector('[data-back]').addEventListener('click',renderHome);body.querySelector('[data-auth-form]').addEventListener('submit',event=>submit(event,mode));}
 async function submit(event,mode){event.preventDefault();if(busy)return;busy=true;const c=copy(),form=event.currentTarget,message=form.querySelector('[data-auth-message]'),button=form.querySelector('button[type="submit"]'),data=new FormData(form),email=String(data.get('email')||'').trim(),password=String(data.get('password')||''),name=String(data.get('name')||'').trim();button.disabled=true;button.textContent=c.working;message.className='atlas-auth-message';message.textContent='';try{if(mode==='register'){const redirectTo=`${location.origin}${location.pathname}`;const result=await request('/auth/v1/signup',{method:'POST',body:JSON.stringify({email,password,data:{name},email_redirect_to:redirectTo})});if(result.access_token){saveSession(result);renderButton();renderHome();}else message.textContent=c.checkEmail;}else if(mode==='recover'){await request('/auth/v1/recover',{method:'POST',body:JSON.stringify({email,redirect_to:location.origin})});message.textContent=c.recoverySent;}else{const result=await request('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});saveSession(result);renderButton();renderHome();}}catch(error){message.className='atlas-auth-message error';message.textContent=error.message||c.invalid;}finally{busy=false;button.disabled=false;if(document.body.contains(button))button.textContent=mode==='recover'?c.submitRecover:mode==='register'?c.submitRegister:c.submitLogin;}}
-window.AtlasAuth={getSession:()=>session,getConfig:()=>({...config}),isAuthenticated:()=>Boolean(session?.access_token),open};
+
+window.AtlasAuth={getSession:()=>session,getConfig:()=>({...config}),isAuthenticated:()=>Boolean(session?.access_token),open,refresh:()=>refreshSession({reason:'external'})};
 window.addEventListener('atlas:locale',()=>{renderButton();if(!modal().classList.contains('hidden'))renderHome();});
-loadConfig().then(async()=>{const consumed=await consumeAuthCallback();if(!consumed)await refreshSession();}).finally(()=>{renderButton();window.dispatchEvent(new CustomEvent('atlas:auth-ready',{detail:{session}}));});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&session?.refresh_token){const expiresAt=Number(session.expires_at||0)*1000;if(!expiresAt||expiresAt-Date.now()<REFRESH_EARLY_MS)refreshSession({reason:'visibility'});}});
+window.addEventListener('online',()=>{if(session?.refresh_token)refreshSession({reason:'online'});});
+loadConfig().then(async()=>{const consumed=await consumeAuthCallback();if(!consumed)await refreshSession({reason:'startup'});}).finally(()=>{renderButton();scheduleRefresh();window.dispatchEvent(new CustomEvent('atlas:auth-ready',{detail:{session}}));});
