@@ -1,5 +1,4 @@
 const STYLE_ID='atlas-confirm-styles';
-const CONFIRMED='atlasConfirmed';
 let active=null;
 
 function english(){return document.documentElement.lang==='en';}
@@ -11,8 +10,8 @@ function installStyles(){
   style.textContent=`
     .atlas-confirm-overlay{position:fixed;inset:0;z-index:2200;display:grid;place-items:center;padding:18px;background:rgba(2,7,15,.78);backdrop-filter:blur(12px);opacity:0;transition:opacity 150ms cubic-bezier(.22,.8,.24,1)}
     .atlas-confirm-overlay.is-open{opacity:1}
-    .atlas-confirm-panel{width:min(440px,100%);border:1px solid rgba(125,165,220,.22);border-radius:22px;background:linear-gradient(150deg,#0f1d33,#071321);box-shadow:0 32px 100px rgba(0,0,0,.58);padding:22px;translate:0 9px;scale:.99;transition:translate 170ms cubic-bezier(.22,.8,.24,1),scale 170ms cubic-bezier(.22,.8,.24,1)}
-    .atlas-confirm-overlay.is-open .atlas-confirm-panel{translate:0 0;scale:1}
+    .atlas-confirm-panel{width:min(440px,100%);border:1px solid rgba(125,165,220,.22);border-radius:22px;background:linear-gradient(150deg,#0f1d33,#071321);box-shadow:0 32px 100px rgba(0,0,0,.58);padding:22px;translate:0 9px;transition:translate 170ms cubic-bezier(.22,.8,.24,1)}
+    .atlas-confirm-overlay.is-open .atlas-confirm-panel{translate:0 0}
     .atlas-confirm-icon{display:grid;place-items:center;width:38px;height:38px;margin-bottom:15px;border-radius:13px;border:1px solid rgba(255,116,116,.28);background:rgba(170,38,48,.12);color:#ff9b9b;font-size:17px;font-weight:900}
     .atlas-confirm-panel h3{margin:0 0 8px;font-size:22px;line-height:1.2;color:var(--text,#f5fbff)}
     .atlas-confirm-panel p{margin:0;color:var(--muted,#9aacc2);line-height:1.55;font-size:14px}
@@ -22,48 +21,25 @@ function installStyles(){
     .atlas-confirm-danger{border:1px solid rgba(255,116,116,.38);background:rgba(168,38,48,.16);color:#ffabab}
     .atlas-confirm-danger:hover{background:rgba(168,38,48,.24)}
     @media(max-width:520px){.atlas-confirm-overlay{padding:14px}.atlas-confirm-panel{padding:19px;border-radius:19px}.atlas-confirm-actions{display:grid;grid-template-columns:1fr 1fr}.atlas-confirm-actions button{width:100%}}
-    @media(prefers-reduced-motion:reduce){.atlas-confirm-overlay,.atlas-confirm-panel{transition:none!important;translate:none!important;scale:1!important}}
+    @media(prefers-reduced-motion:reduce){.atlas-confirm-overlay,.atlas-confirm-panel{transition:none!important;translate:none!important}}
   `;
   document.head.appendChild(style);
 }
 
-function copyFor(button){
-  const en=english();
-  const text=(button.textContent||'').trim().toLowerCase();
-  if(button.matches('[data-copilot-clear]')||text.includes('borrar chat')||text.includes('clear chat')){
-    return en
-      ? {title:'Clear this conversation?',message:'The Copilot conversation for this project will be removed. This action cannot be undone.',confirm:'Clear chat'}
-      : {title:'¿Borrar esta conversación?',message:'Se eliminará la conversación del Copiloto de este proyecto. Esta acción no se puede deshacer.',confirm:'Borrar chat'};
-  }
-  if(button.closest('.workspace-evidence-card')||text.includes('evidencia')||text.includes('evidence')){
-    return en
-      ? {title:'Delete this evidence?',message:'This evidence will be removed from the project. This action cannot be undone.',confirm:'Delete evidence'}
-      : {title:'¿Eliminar esta evidencia?',message:'Esta evidencia se eliminará del proyecto. Esta acción no se puede deshacer.',confirm:'Eliminar evidencia'};
-  }
-  if(button.closest('.workspace-card')||button.matches('[data-action="delete"]')){
-    return en
-      ? {title:'Delete this project?',message:'The project and its local history will be removed. This action cannot be undone.',confirm:'Delete project'}
-      : {title:'¿Eliminar este proyecto?',message:'Se eliminarán el proyecto y su historial local. Esta acción no se puede deshacer.',confirm:'Eliminar proyecto'};
-  }
-  return en
-    ? {title:'Delete this item?',message:'This action cannot be undone.',confirm:'Delete'}
-    : {title:'¿Eliminar este elemento?',message:'Esta acción no se puede deshacer.',confirm:'Eliminar'};
-}
-
 function close(result=false){
   if(!active)return;
-  const {root,resolve,trigger,previousOverflow}=active;
+  const current=active;
   active=null;
-  root.classList.remove('is-open');
-  document.documentElement.style.overflow=previousOverflow;
+  current.root.classList.remove('is-open');
+  document.documentElement.style.overflow=current.previousOverflow;
   setTimeout(()=>{
-    root.remove();
-    if(trigger?.isConnected)trigger.focus({preventScroll:true});
-    resolve(result);
+    current.root.remove();
+    if(current.trigger?.isConnected)current.trigger.focus({preventScroll:true});
+    current.resolve(result);
   },160);
 }
 
-function ask(options={},trigger=null){
+export function ask(options={},trigger=null){
   installStyles();
   if(active)close(false);
   return new Promise(resolve=>{
@@ -87,40 +63,9 @@ function ask(options={},trigger=null){
   });
 }
 
-function destructiveButton(target){
-  const button=target instanceof Element?target.closest('button'):null;
-  if(!(button instanceof HTMLButtonElement)||button.disabled)return null;
-  if(button.matches('[data-delete-account],[data-delete-confirm],[data-delete-cancel]')||button.closest('.atlas-delete-confirm'))return null;
-  if(button.matches('[data-copilot-clear],[data-action="delete"]'))return button;
-  const text=(button.textContent||'').trim().toLowerCase();
-  if(['eliminar','delete','borrar chat','clear chat','eliminar evidencia','delete evidence','eliminar proyecto','delete project'].includes(text))return button;
-  if(button.closest('.workspace-evidence-actions')&&(text.includes('eliminar')||text.includes('delete')))return button;
-  return null;
-}
-
-function runApprovedClick(button){
-  if(!(button instanceof HTMLButtonElement)||!button.isConnected)return;
-  button.dataset[CONFIRMED]='1';
-  const nativeConfirm=window.confirm;
-  try{
-    // Existing Workspace/Copilot handlers still contain synchronous confirm().
-    // The Atlas dialog has already obtained consent, so allow that exact handler
-    // to continue once without presenting a second native browser dialog.
-    window.confirm=()=>true;
-    button.click();
-  }finally{
-    window.confirm=nativeConfirm;
-    delete button.dataset[CONFIRMED];
-  }
-}
-
-function trapKeys(event){
+function onKeydown(event){
   if(!active)return;
-  if(event.key==='Escape'){
-    event.preventDefault();
-    close(false);
-    return;
-  }
+  if(event.key==='Escape'){event.preventDefault();close(false);return;}
   if(event.key!=='Tab')return;
   const buttons=[...active.root.querySelectorAll('button:not(:disabled)')];
   if(!buttons.length)return;
@@ -129,20 +74,5 @@ function trapKeys(event){
   else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
 }
 
-function init(){
-  installStyles();
-  document.addEventListener('keydown',trapKeys,true);
-  document.addEventListener('click',async event=>{
-    const button=destructiveButton(event.target);
-    if(!button)return;
-    if(button.dataset[CONFIRMED]==='1')return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    const accepted=await ask(copyFor(button),button);
-    if(!accepted)return;
-    runApprovedClick(button);
-  },true);
-  window.AtlasConfirm={ask};
-}
-
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+document.addEventListener('keydown',onKeydown,true);
+window.AtlasConfirm={ask};
