@@ -1,4 +1,4 @@
-# Atlas Beta 3.4 — Architecture
+# Atlas — Current Architecture
 
 GitHub (`proymas/atlas`, branch `main`) is the source of truth. Vercel deploys the browser application and the serverless API. Supabase provides authentication/data services and Stripe provides subscription billing.
 
@@ -14,7 +14,7 @@ GitHub (`proymas/atlas`, branch `main`) is the source of truth. Vercel deploys t
 - `src/billing-client.js`: Checkout and Billing Portal redirects.
 - `src/reanalysis-v2.js`, `src/version-compare.js`, `src/experiment-lab.js`, `src/copilot.js`: continuity features.
 - `src/history-pdf-gating.js`: history/PDF plan behavior.
-- `src/free-stable.js`: temporary compatibility facade only; legacy Beta waitlist/analysis-limit behavior has been removed.
+- `src/free-stable.js`: temporary compatibility facade only; legacy waitlist/analysis-limit behavior has been removed.
 
 ## Serverless API (Vercel)
 
