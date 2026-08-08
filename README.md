@@ -2,9 +2,9 @@
 
 Atlas is a business-validation workspace that turns an idea into a structured diagnosis and then keeps the project moving through evidence, experiments, reanalysis, version comparison and contextual Copilot guidance.
 
-## Current version
+## Current architecture
 
-**Atlas Beta 3.4 — Free + Pro continuity architecture**
+**Atlas — Free + Pro continuity architecture**
 
 GitHub is the source of truth. Production is deployed from `main` to Vercel at `https://atlas-beta-2.vercel.app`.
 
