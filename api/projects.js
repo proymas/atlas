@@ -104,7 +104,7 @@ export default async function handler(req, res) {
         period: error?.data?.period || null,
       });
     }
-    console.error('atlas_projects_api_failed', error);
+    if(status!==401)console.error('atlas_projects_api_failed', error);
     return res.status(status === 401 ? 401 : 502).json({
       error: status === 401 ? 'unauthorized' : 'cloud_request_failed',
       detail: error?.message || 'unknown',
