@@ -98,6 +98,22 @@ function destructiveButton(target){
   return null;
 }
 
+function runApprovedClick(button){
+  if(!(button instanceof HTMLButtonElement)||!button.isConnected)return;
+  button.dataset[CONFIRMED]='1';
+  const nativeConfirm=window.confirm;
+  try{
+    // Existing Workspace/Copilot handlers still contain synchronous confirm().
+    // The Atlas dialog has already obtained consent, so allow that exact handler
+    // to continue once without presenting a second native browser dialog.
+    window.confirm=()=>true;
+    button.click();
+  }finally{
+    window.confirm=nativeConfirm;
+    delete button.dataset[CONFIRMED];
+  }
+}
+
 function trapKeys(event){
   if(!active)return;
   if(event.key==='Escape'){
@@ -119,16 +135,12 @@ function init(){
   document.addEventListener('click',async event=>{
     const button=destructiveButton(event.target);
     if(!button)return;
-    if(button.dataset[CONFIRMED]==='1'){
-      delete button.dataset[CONFIRMED];
-      return;
-    }
+    if(button.dataset[CONFIRMED]==='1')return;
     event.preventDefault();
     event.stopImmediatePropagation();
     const accepted=await ask(copyFor(button),button);
     if(!accepted)return;
-    button.dataset[CONFIRMED]='1';
-    button.click();
+    runApprovedClick(button);
   },true);
   window.AtlasConfirm={ask};
 }
