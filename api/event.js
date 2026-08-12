@@ -6,11 +6,14 @@ const ALLOWED = new Set([
   'report_generated','analysis_error','screening_blocked','restart_clicked','pdf_downloaded','report_shared',
   'feedback_submitted','locale_changed','experiment_step_completed',
   'free_analysis_available','free_limit_reached','free_analysis_consumed','pro_upsell_viewed',
-  'continue_free_clicked'
+  'continue_free_clicked','pricing_viewed','commercial_intent','checkout_started','checkout_redirected'
 ]);
 
 function cleanObject(value = {}) {
-  const allowed = ['locale','step','total','durationMs','score','verdict','maturity','profile','mode','questionDimension','errorCode','rating','completed','experimentProgress','source','tier','billing'];
+  const allowed = [
+    'locale','step','total','durationMs','score','verdict','maturity','profile','mode','questionDimension',
+    'errorCode','rating','completed','experimentProgress','source','tier','billing','partner','ref','campaign','landingPath'
+  ];
   return Object.fromEntries(allowed.filter(key => value[key] !== undefined).map(key => [key, value[key]]));
 }
 
