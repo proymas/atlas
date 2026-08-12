@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 const ALLOWED = new Set([
   'landing_view','validator_started','question_viewed','question_answered','questionnaire_completed',
   'report_generated','analysis_error','screening_blocked','restart_clicked','pdf_downloaded','report_shared',
-  'feedback_submitted','locale_changed','experiment_step_completed',
+  'feedback_submitted','pro_waitlist_joined','locale_changed','experiment_step_completed',
   'free_analysis_available','free_limit_reached','free_analysis_consumed','pro_upsell_viewed',
   'continue_free_clicked','pricing_viewed','commercial_intent','checkout_started','checkout_redirected'
 ]);
