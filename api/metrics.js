@@ -52,6 +52,42 @@ function percentile(values, p) {
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
 }
 
+function funnelFor(events) {
+  const counts = countBy(events, event => event.name);
+  const landing = counts.landing_view || 0;
+  const started = counts.validator_started || 0;
+  const completed = counts.report_generated || 0;
+  const pricing = counts.pricing_viewed || 0;
+  const intent = counts.commercial_intent || 0;
+  const checkout = counts.checkout_started || 0;
+  const payment = counts.payment || 0;
+  return {
+    landing,
+    started,
+    questionnaireCompleted: counts.questionnaire_completed || 0,
+    reportGenerated: completed,
+    pricingViewed: pricing,
+    commercialIntent: intent,
+    checkoutStarted: checkout,
+    payment,
+    startRate: landing ? Math.round((started / landing) * 1000) / 10 : 0,
+    completionRate: started ? Math.round((completed / started) * 1000) / 10 : 0,
+    commercialIntentRate: completed ? Math.round((intent / completed) * 1000) / 10 : 0,
+    paymentRate: completed ? Math.round((payment / completed) * 1000) / 10 : 0
+  };
+}
+
+function aggregateDimension(events, key) {
+  const groups = new Map();
+  for (const event of events) {
+    const value = event.data?.[key];
+    if (!value) continue;
+    if (!groups.has(value)) groups.set(value, []);
+    groups.get(value).push(event);
+  }
+  return Object.fromEntries([...groups.entries()].map(([value, group]) => [value, funnelFor(group)]));
+}
+
 function aggregate(events) {
   const sessions = new Map();
   for (const event of events) {
@@ -89,6 +125,10 @@ function aggregate(events) {
       shares: eventCounts.report_shared || 0,
       feedback: eventCounts.feedback_submitted || 0,
       proWaitlist: eventCounts.pro_waitlist_joined || 0,
+      pricingViewed: eventCounts.pricing_viewed || 0,
+      commercialIntent: eventCounts.commercial_intent || 0,
+      checkoutStarted: eventCounts.checkout_started || 0,
+      payments: eventCounts.payment || 0,
       errors: eventCounts.analysis_error || 0,
       blocked: eventCounts.screening_blocked || 0
     },
@@ -106,13 +146,11 @@ function aggregate(events) {
       modes: countBy(events.filter(e => e.name === 'report_generated'), e => e.data?.mode),
       locales: countBy(events.filter(e => e.name === 'report_generated'), e => e.locale)
     },
-    funnel: {
-      landing: eventCounts.landing_view || 0,
-      started,
-      questionnaireCompleted: eventCounts.questionnaire_completed || 0,
-      reportGenerated: completed,
-      feedback: eventCounts.feedback_submitted || 0,
-      proWaitlist: eventCounts.pro_waitlist_joined || 0
+    funnel: funnelFor(events),
+    attribution: {
+      byPartner: aggregateDimension(events, 'partner'),
+      bySource: aggregateDimension(events, 'source'),
+      byCampaign: aggregateDimension(events, 'campaign')
     },
     abandonmentByQuestion: questionAbandonment,
     recentEvents: events.slice(-100).reverse().map(event => ({
