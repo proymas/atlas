@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { put } from '@vercel/blob';
 
 const STRIPE='https://api.stripe.com/v1';
 const LIVE_ORIGIN='https://atlas-beta-2.vercel.app';
@@ -40,6 +41,31 @@ function stripeConfig(){
 
 async function raw(req){const chunks=[];for await(const c of req)chunks.push(Buffer.from(c));return Buffer.concat(chunks);}
 function bearer(req){const v=String(req.headers.authorization||'');return v.toLowerCase().startsWith('bearer ')?v.slice(7).trim():'';}
+function safeToken(value){const token=String(value||'').trim().toLowerCase();return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(token)?token:'';}
+function safeSessionId(value){const id=String(value||'').trim();return /^[a-zA-Z0-9_-]{8,80}$/.test(id)?id:'';}
+function cleanAttribution(value){
+  const partner=safeToken(value?.partner||value?.ref);
+  const campaign=safeToken(value?.campaign);
+  return {partner,ref:partner,campaign};
+}
+
+async function persistCommercialEvent(name,{sessionId='',partner='',campaign='',billing='',source='stripe'}={}){
+  const event={
+    id:crypto.randomUUID(),
+    name,
+    sessionId:safeSessionId(sessionId)||`stripe_${crypto.randomUUID().replaceAll('-','').slice(0,24)}`,
+    version:'server',
+    locale:'unknown',
+    country:'unknown',
+    createdAt:new Date().toISOString(),
+    data:{source,billing,partner,ref:partner,campaign}
+  };
+  console.log(JSON.stringify({type:'atlas_product_event',...event}));
+  if(!process.env.BLOB_READ_WRITE_TOKEN)return;
+  const day=event.createdAt.slice(0,10);
+  const pathname=`analytics/events/${day}/${event.createdAt.replace(/[:.]/g,'-')}-${event.id}.json`;
+  await put(pathname,JSON.stringify(event),{access:'private',contentType:'application/json',addRandomSuffix:false});
+}
 
 async function user(token){
   const key=anonKey(),url=supabaseUrl();
@@ -90,7 +116,6 @@ async function patchAuthPlan(userId,data,cfg){
 async function plan(userId,cfg){
   const saved=await authPlan(userId,cfg);
   if(saved?.stripe_customer_id)return saved;
-  // Compatibility fallback for subscriptions created before billing metadata existed.
   const list=await stripeGet('/subscriptions?status=all&limit=100',cfg);
   const sub=(list.data||[]).find(s=>s?.metadata?.atlas_user_id===userId&&String(s?.metadata?.atlas_stripe_mode||cfg.mode)===cfg.mode);
   return sub?{stripe_customer_id:sub.customer||null,stripe_subscription_id:sub.id||null}:saved;
@@ -122,11 +147,22 @@ async function webhook(req,res,payload,cfg){
   const event=JSON.parse(payload.toString('utf8'));
   if(Boolean(event.livemode)!==(cfg.mode==='live'))return res.status(400).json({error:'stripe_mode_mismatch'});
   const o=event.data?.object||{};
+
+  if(event.type==='checkout.session.completed'&&o.payment_status==='paid'){
+    await persistCommercialEvent('payment',{
+      sessionId:o.metadata?.atlas_session_id,
+      partner:o.metadata?.atlas_partner,
+      campaign:o.metadata?.atlas_campaign,
+      billing:o.metadata?.atlas_billing,
+      source:cfg.mode==='test'?'stripe_test':'stripe'
+    });
+  }
+
   if(event.type.startsWith('customer.subscription.')&&o.metadata?.atlas_user_id){
     const interval=Object.fromEntries(Object.entries(cfg.prices).map(([k,v])=>[v,k]));
     const price=o.items?.data?.[0]?.price?.id||null;
     const pro=['active','trialing'].includes(o.status);
-    await patchAuthPlan(o.metadata.atlas_user_id,{plan:pro?'pro':'free',status:pro?'active':'inactive',stripe_status:o.status||'unknown',source:cfg.mode==='test'?'stripe_test':'stripe',stripe_customer_id:o.customer||null,stripe_subscription_id:o.id||null,stripe_price_id:price,billing_interval:interval[price]||null,current_period_end:o.current_period_end?new Date(o.current_period_end*1000).toISOString():null,cancel_at_period_end:Boolean(o.cancel_at_period_end)},cfg);
+    await patchAuthPlan(o.metadata.atlas_user_id,{plan:pro?'pro':'free',status:pro?'active':'inactive',stripe_status:o.status||'unknown',source:cfg.mode==='test'?'stripe_test':'stripe',stripe_customer_id:o.customer||null,stripe_subscription_id:o.id||null,stripe_price_id:price,billing_interval:interval[price]||null,current_period_end:o.current_period_end?new Date(o.current_period_end*1000).toISOString():null,cancel_at_period_end:Boolean(o.cancel_at_period_end),partner:o.metadata?.atlas_partner||null,campaign:o.metadata?.atlas_campaign||null},cfg);
   }
   return res.status(200).json({received:true,mode:cfg.mode});
 }
@@ -150,7 +186,34 @@ export default async function handler(req,res){
       return res.status(200).json({url:s.url,mode:cfg.mode});
     }
     const billing=body.billing==='monthly'?'monthly':'annual';
-    const s=await stripe('/checkout/sessions',{mode:'subscription','line_items[0][price]':cfg.prices[billing],'line_items[0][quantity]':'1',customer_email:u.email,client_reference_id:u.id,'subscription_data[metadata][atlas_user_id]':u.id,'subscription_data[metadata][atlas_stripe_mode]':cfg.mode,'metadata[atlas_user_id]':u.id,'metadata[atlas_billing]':billing,'metadata[atlas_stripe_mode]':cfg.mode,success_url:`${origin}/?billing=success#atlas-pro`,cancel_url:`${origin}/#atlas-pro`,allow_promotion_codes:'true'},cfg);
+    const attribution=cleanAttribution(body.attribution||{});
+    const sessionId=safeSessionId(body.sessionId);
+    const success=new URL('/',origin);
+    success.searchParams.set('billing','success');
+    if(attribution.partner)success.searchParams.set('ref',attribution.partner);
+    success.hash='atlas-pro';
+    const cancel=new URL('/',origin);
+    if(attribution.partner)cancel.searchParams.set('ref',attribution.partner);
+    cancel.hash='atlas-pro';
+    const checkoutBody={
+      mode:'subscription',
+      'line_items[0][price]':cfg.prices[billing],
+      'line_items[0][quantity]':'1',
+      customer_email:u.email,
+      client_reference_id:u.id,
+      'subscription_data[metadata][atlas_user_id]':u.id,
+      'subscription_data[metadata][atlas_stripe_mode]':cfg.mode,
+      'metadata[atlas_user_id]':u.id,
+      'metadata[atlas_billing]':billing,
+      'metadata[atlas_stripe_mode]':cfg.mode,
+      success_url:success.toString(),
+      cancel_url:cancel.toString(),
+      allow_promotion_codes:'true'
+    };
+    if(sessionId){checkoutBody['metadata[atlas_session_id]']=sessionId;checkoutBody['subscription_data[metadata][atlas_session_id]']=sessionId;}
+    if(attribution.partner){checkoutBody['metadata[atlas_partner]']=attribution.partner;checkoutBody['subscription_data[metadata][atlas_partner]']=attribution.partner;}
+    if(attribution.campaign){checkoutBody['metadata[atlas_campaign]']=attribution.campaign;checkoutBody['subscription_data[metadata][atlas_campaign]']=attribution.campaign;}
+    const s=await stripe('/checkout/sessions',checkoutBody,cfg);
     return res.status(200).json({url:s.url,mode:cfg.mode});
   }catch(e){
     console.error('billing_failed',{message:e?.message||'billing_failed'});
