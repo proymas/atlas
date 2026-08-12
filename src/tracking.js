@@ -24,11 +24,15 @@ function captureAttribution() {
     const params = new URLSearchParams(location.search);
     const partner = cleanToken(params.get('ref') || params.get('partner'));
     const campaign = cleanToken(params.get('campaign') || params.get('utm_campaign'));
-    if (partner) {
+    const source = cleanToken(params.get('source') || params.get('utm_source'));
+    if (partner || source || campaign) {
+      const existing = JSON.parse(localStorage.getItem(ATTRIBUTION_KEY) || 'null') || {};
+      const resolvedPartner = partner || cleanToken(existing.partner);
       localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify({
-        partner,
-        ref: partner,
-        campaign: campaign || undefined,
+        partner: resolvedPartner || undefined,
+        ref: resolvedPartner || undefined,
+        campaign: campaign || cleanToken(existing.campaign) || undefined,
+        source: source || cleanToken(existing.source) || undefined,
         landingPath: `${location.pathname}${location.search}`.slice(0, 240),
         capturedAt: Date.now()
       }));
@@ -40,14 +44,19 @@ export function getAttribution() {
   captureAttribution();
   try {
     const value = JSON.parse(localStorage.getItem(ATTRIBUTION_KEY) || 'null');
-    if (!value?.partner || !value?.capturedAt || Date.now() - Number(value.capturedAt) > ATTRIBUTION_TTL_MS) {
+    if (!value?.capturedAt || Date.now() - Number(value.capturedAt) > ATTRIBUTION_TTL_MS) {
       localStorage.removeItem(ATTRIBUTION_KEY);
       return {};
     }
+    const partner = cleanToken(value.partner || value.ref);
+    const source = cleanToken(value.source);
+    const campaign = cleanToken(value.campaign);
+    if (!partner && !source && !campaign) return {};
     return {
-      partner: cleanToken(value.partner),
-      ref: cleanToken(value.ref || value.partner),
-      campaign: cleanToken(value.campaign),
+      partner,
+      ref: partner,
+      source,
+      campaign,
       landingPath: String(value.landingPath || '').slice(0, 240)
     };
   } catch {
